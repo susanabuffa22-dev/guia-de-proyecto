@@ -24,19 +24,18 @@
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "@google/genai": "https://esm.sh/@google/genai@0.14.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
   }
 }
 </script>
-<!-- Añadimos Babel para "traducir" el código TSX en el navegador -->
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
   <body class="bg-slate-50 text-slate-800">
     <div id="root"></div>
-    <!-- Cambiamos el tipo de script y añadimos los presets para que Babel procese TypeScript y React -->
-    <script type="text/babel" data-type="module" data-presets="typescript,react" src="/index.tsx"></script>
+    <!-- Se carga el script transpilado. No más Babel en el navegador. -->
+    <script type="module" src="/index.js"></script>
   </body>
 </html>
