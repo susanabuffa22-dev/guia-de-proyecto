@@ -131,7 +131,7 @@ const initializeAi = (apiKey) => {
       throw new Error("La API Key no puede estar vacía.");
     }
     ai = new GoogleGenAI({ apiKey: apiKey });
-    return null; 
+    return null;
   } catch (e) {
     console.error("Failed to initialize GoogleGenAI:", e);
     return `Error al inicializar la IA. Asegúrate de que tu API Key sea correcta. Detalle: ${e.message}`;
@@ -824,7 +824,7 @@ const App = () => {
   };
   const handleToggleAgreement = useCallback((messageId) => {
     setMessages(prevMessages => {
-      const updatedMessages = prevMessages.map(msg => 
+      const updatedMessages = prevMessages.map(msg =>
         msg.id === messageId ? { ...msg, isAgreed: true } : msg
       );
       const feedbackMessages = updatedMessages.filter(msg => msg.type === 'feedback');
