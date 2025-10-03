@@ -1,265 +1,246 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
+import type { Discipline } from '../questions';
 
-const API_KEY = process.env.API_KEY;
-
-let ai: GoogleGenAI | null = null;
+// This will be initialized by the initializeAi function.
+let ai: GoogleGenAI;
 
 /**
  * Initializes the GoogleGenAI client.
  * Must be called once when the application starts.
- * @returns An error message string if initialization fails, otherwise null.
+ * @returns An error message if the API key is missing, otherwise null.
  */
 export const initializeAi = (): string | null => {
-  if (ai) return null; // Already initialized
-
-  if (!API_KEY) {
-    return "La variable de entorno API_KEY no está configurada. Para solucionarlo, ve a la configuración de tu sitio en Netlify, busca 'Build & deploy' > 'Environment' y añade una variable de entorno con la clave `API_KEY` y tu clave de API como valor. Después de añadirla, necesitas volver a desplegar tu sitio desde la pestaña 'Deploys'.";
-  }
-
   try {
-    ai = new GoogleGenAI({ apiKey: API_KEY });
-    return null; // Success
-  } catch (error: any) {
-    console.error("Error initializing GoogleGenAI:", error);
-    return `Error al inicializar la IA: ${error.message}`;
+    if (!process.env.API_KEY) {
+      throw new Error("API key is missing. Please set the API_KEY environment variable.");
+    }
+    // FIX: Initialize the GoogleGenAI client with the API key from environment variables.
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return null;
+  } catch (e: any) {
+    console.error("Failed to initialize GoogleGenAI:", e);
+    return e.message || "An unknown error occurred during AI initialization.";
   }
 };
 
 /**
- * Gets the initialized AI client. Throws an error if it hasn't been initialized.
- * @returns The initialized GoogleGenAI client instance.
+ * Provides feedback on the student's project answers.
+ * If the plan is solid, returns an empty array.
+ * Otherwise, returns cards with suggestions for improvement.
  */
-const getAiClient = (): GoogleGenAI => {
-    if (!ai) {
-        // This error is for developers, the user-facing error is handled in initializeAi
-        throw new Error("El cliente de IA no ha sido inicializado. Llama a initializeAi() al iniciar la aplicación.");
-    }
-    return ai;
-}
+export const getDesignFeedback = async (
+  studentAnswersString: string,
+  discipline: Discipline
+): Promise<{ title: string; content: string }[]> => {
+  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
 
+  // FIX: Use 'gemini-2.5-flash' model for text generation tasks.
+  const model = 'gemini-2.5-flash';
+  const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop. Your task is to review a student's project plan.
+- If the plan is clear, consistent, and feasible, return an empty array.
+- If there are potential issues, contradictions, or areas for improvement, provide CONCISE and CONSTRUCTIVE feedback.
+- Frame your feedback as helpful suggestions, not criticisms.
+- Each piece of feedback should be an object with a "title" (a short, catchy phrase) and "content" (a 1-2 sentence explanation).
+- Return a maximum of 3 feedback cards. Do not overwhelm the student.`;
 
-const handleError = (error: unknown): never => {
-  console.error("Error calling Gemini API:", error);
-  if (error instanceof Error) {
-      if(error.message.includes('API key not valid')) {
-          throw new Error('La clave API no es válida. Por favor, verifica la configuración.');
-      }
-      if (error instanceof SyntaxError) {
-        throw new Error("La IA devolvió una respuesta con formato incorrecto. Por favor, inténtalo de nuevo.");
-      }
-  }
-  throw new Error("No se pudo comunicar con el servicio de IA. Inténtalo de nuevo más tarde.");
-}
-
-type FeedbackCard = {
-  title: string;
-  content: string;
-};
-
-const getMentorContext = (discipline: string): { persona: string; context: string } => {
-  switch (discipline) {
-    case 'carpentry':
-      return {
-        persona: 'Actúa como un maestro carpintero y mentor experto para un grupo de estudiantes de carpintería.',
-        context: 'El proyecto es de carpintería, enfocado en el trabajo con madera, uniones y acabados.'
-      };
-    case 'mechanics':
-      return {
-        persona: 'Actúa como un mentor experto en ingeniería mecánica para un grupo de estudiantes.',
-        context: 'El proyecto es de mecánica, enfocado en sistemas de movimiento, engranajes, palancas y fuerzas.'
-      };
-    default: // technology
-      return {
-        persona: 'Actúa como un mentor de ingeniería experto para un grupo de estudiantes de tecnología.',
-        context: 'El proyecto es de tecnología, probablemente involucrando electrónica, programación y robótica.'
-      };
-  }
-}
-
-export const getDesignFeedback = async (studentAnswers: string, discipline: string): Promise<FeedbackCard[]> => {
-  const aiClient = getAiClient();
-  const { persona, context } = getMentorContext(discipline);
   const prompt = `
-    ${persona} Tu misión es analizar su plan de proyecto y dar retroalimentación constructiva. ${context} Divide tu retroalimentación en tarjetas de sugerencia separadas y concisas.
+    Student's Project Plan (JSON):
+    ${studentAnswersString}
 
-    Estas son las respuestas de los estudiantes a tus preguntas de diseño:
-    ---
-    ${studentAnswers}
-    ---
-
-    Analiza sus respuestas. Si identificas puntos problemáticos o mejorables, presenta cada uno como un objeto JSON separado dentro de un array. Si el plan es sólido, devuelve un array vacío.
-
-    Cada objeto debe tener:
-    - "title": Un título corto para la sugerencia, como 'Punto a Revisar: Complejidad del Movimiento'.
-    - "content": La sugerencia detallada y la explicación, usando el formato: "**Sugerencia:** [Tu sugerencia]. **Explicación:** [El porqué de tu sugerencia]."
-
-    Si el plan es excelente y no tienes sugerencias, devuelve un array JSON vacío: [].
+    Review this plan and provide feedback based on your instructions.
+    If the plan is good, respond with an empty JSON array: [].
+    If there are suggestions, respond with a JSON array of feedback objects.
   `;
-
+  
   try {
-    const response = await aiClient.models.generateContent({
-      model: 'gemini-2.5-flash',
+    // FIX: Use ai.models.generateContent and provide model, contents, and config.
+    const response = await ai.models.generateContent({
+      model,
       contents: prompt,
       config: {
+        systemInstruction,
+        // FIX: Use responseMimeType and responseSchema to get structured JSON output.
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
-              title: {
-                type: Type.STRING,
-                description: "Un título corto para la sugerencia."
-              },
-              content: {
-                type: Type.STRING,
-                description: "La sugerencia y explicación detallada."
-              },
+              title: { type: Type.STRING },
+              content: { type: Type.STRING },
             },
-            required: ['title', 'content']
-          }
-        }
-      }
+            required: ["title", "content"],
+          },
+        },
+      },
     });
 
+    // FIX: Extract text from response using the .text property.
     const jsonText = response.text.trim();
-    const parsedResponse = JSON.parse(jsonText);
-    
-    if (Array.isArray(parsedResponse)) {
-      return parsedResponse;
+    if (!jsonText) {
+        console.warn("Gemini API returned an empty response for feedback.");
+        return [];
     }
-    
-    throw new Error("La respuesta de la IA no tenía el formato de array esperado.");
+    const feedback = JSON.parse(jsonText);
+    return feedback;
 
   } catch (error) {
-    handleError(error);
+    console.error("Error getting design feedback:", error);
+    throw new Error("Failed to get feedback from the AI. Please try again.");
   }
 };
 
-export const generateCustomGuide = async (studentAnswers: string, conversationHistory: string, discipline: string): Promise<string> => {
-    const aiClient = getAiClient();
-    const { persona } = getMentorContext(discipline);
-    const prompt = `
-      ${persona} Tu misión es crear una guía de proyecto detallada y personalizada basada en el plan de un grupo de estudiantes.
-  
-      Usa la siguiente información, que son las respuestas de los estudiantes, para generar la guía:
-      ---
-      PLAN INICIAL DEL ESTUDIANTE:
-      ${studentAnswers}
-      ---
+/**
+ * Generates a conceptual image for the project based on the student's answers.
+ */
+export const generateProjectImage = async (
+  studentAnswersString: string,
+  discipline: Discipline
+): Promise<string> => {
+  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
 
-      Además de las respuestas iniciales, el equipo ha tenido la siguiente conversación de seguimiento contigo. DEBES tener en cuenta esta conversación para refinar y ajustar la guía final para que refleje los puntos discutidos.
+  // FIX: Use 'imagen-4.0-generate-001' model for image generation tasks.
+  const model = 'imagen-4.0-generate-001';
   
-      CONVERSACIÓN DE RETROALIMENTACIÓN Y ACLARACIONES:
-      ---
-      ${conversationHistory}
-      ---
-  
-      La guía DEBE seguir este formato EXACTAMENTE, usando los mismos emojis, títulos y estructura. No añadas ninguna introducción o conclusión fuera de este formato. Rellena cada sección basándote en la información proporcionada por los estudiantes Y la conversación. OMITE la sección "2. 🎨 Concepto Visual" por completo, ya que se manejará por separado.
-  
-      1. 📝 Resumen del Proyecto y Objetivos de Aprendizaje
-      * **¿Qué vamos a construir?** (Descripción basada en sus respuestas y aclaraciones).
-      * **¿Qué aprenderemos?** (Infiere 3-4 puntos clave de su plan, relevantes para la disciplina de ${discipline}).
-      
-      3. 🛠️ Materiales y Herramientas
-      * **Materiales Principales:** (Infiere una lista detallada basada en el tipo de proyecto: madera para carpintería, metales/plásticos para mecánica, componentes electrónicos para tecnología).
-      * **Consumibles y Piezas Pequeñas:** (Infiere una lista de tornillos, pegamento, cables, etc.).
-      * **Herramientas:** (Infiere una lista de herramientas necesarias para la disciplina).
-  
-      4. ⏰ Tiempo Estimado del Proyecto
-      * **Diseño y Planificación:** (Estima un tiempo).
-      * **Construcción y Ensamblaje:** (Estima un tiempo).
-      * **Programación y Pruebas:** (Si aplica, estima un tiempo. Si no, omite esta línea).
-      * **TOTAL:** (Calcula el total).
-  
-      5. 🗺️ Mapa de Ruta: Construcción Paso a Paso
-      (Genera una guía detallada con Fases y Pasos para construir SU diseño específico, refinado por la conversación. Sé creativo y práctico).
-      `;
-  
-    try {
-      const response = await aiClient.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-      return response.text;
-    } catch (error) {
-      handleError(error);
+  const answers = JSON.parse(studentAnswersString);
+  const name = answers.name || `a ${discipline} project`;
+  const idea = answers.idea || 'an innovative device';
+  const style = answers.style || 'a conceptual art style';
+  const materials = answers.materials || 'various materials';
+
+  const prompt = `
+    A professional, high-quality concept art of a student project named "${name}".
+    The project is: ${idea}.
+    It has a ${style} aesthetic and is primarily made of ${materials}.
+    The image should be a clean product design sketch on a white background, highlighting its key features.
+    Vibrant, optimistic, and inspiring tone.
+  `;
+
+  try {
+    // FIX: Use ai.models.generateImages for image generation.
+    const response = await ai.models.generateImages({
+      model,
+      prompt,
+      config: {
+        numberOfImages: 1,
+        outputMimeType: 'image/png',
+        aspectRatio: '16:9',
+      },
+    });
+
+    if (response.generatedImages && response.generatedImages.length > 0) {
+      const base64ImageBytes = response.generatedImages[0].image.imageBytes;
+      return `data:image/png;base64,${base64ImageBytes}`;
+    } else {
+      throw new Error("The AI did not generate an image.");
     }
-  };
+  } catch (error) {
+    console.error("Error generating project image:", error);
+    throw new Error("Failed to generate a project image. Please try again.");
+  }
+};
+
+/**
+ * Generates a full, step-by-step project guide.
+ */
+export const generateCustomGuide = async (
+  studentAnswersString: string,
+  conversationHistory: string,
+  discipline: Discipline
+): Promise<string> => {
+  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
+
+  // FIX: Use 'gemini-2.5-flash' model for text generation tasks.
+  const model = 'gemini-2.5-flash';
+  const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
+Your task is to generate a comprehensive, step-by-step project guide for a student.
+You will be given the student's initial answers and the conversation history (feedback and clarifications).
+Use this information to create a personalized, encouraging, and clear guide.
+
+**Output Format Rules:**
+- The guide MUST be structured into the following 5 sections, in this exact order and using these exact titles with emojis:
+  1. 📝 Resumen del Proyecto
+  2. 🎨 Concepto Visual: ¿Cómo se verá?
+  3. 🛠️ Materiales y Herramientas
+  4. ⏰ Plan de Acción Detallado (Fases)
+  5. 🗺️ Próximos Pasos y Consejos
+- The "Concepto Visual" section should only contain its title. The app will insert the image there.
+- Under "Materiales y Herramientas", use bullet points for lists (e.g., "* Componentes Electrónicos:", "* Herramientas:").
+- Under "Plan de Acción Detallado", break the project into 3-5 logical "Fase"s (e.g., "Fase 1: Diseño y Prototipado en Papel").
+- For each phase, provide a list of concrete, actionable steps using bullet points (*).
+- Keep the language clear, encouraging, and accessible for a student.
+- DO NOT add any introduction or conclusion outside of the 5 sections. Start directly with "1. 📝 Resumen del Proyecto".
+`;
+
+  const prompt = `
+    Student's Project Plan (JSON):
+    ${studentAnswersString}
+
+    Conversation History:
+    ${conversationHistory || 'No feedback was needed.'}
+
+    Generate the project guide based on all the provided information and following the output format rules precisely.
+  `;
+
+  try {
+    // FIX: Use ai.models.generateContent for text generation.
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        systemInstruction,
+      },
+    });
+
+    // FIX: Extract text from response using the .text property.
+    return response.text;
+  } catch (error) {
+    console.error("Error generating custom guide:", error);
+    throw new Error("Failed to generate the project guide. Please try again.");
+  }
+};
 
 
-  export const generateProjectImage = async (studentAnswers: string, discipline: string): Promise<string> => {
-    const aiClient = getAiClient();
-    const { context } = getMentorContext(discipline);
-    try {
-      const imagePromptGeneratorResponse = await aiClient.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `Basado en estas respuestas de estudiantes sobre su proyecto de ${discipline}, crea un prompt conciso y descriptivo en español para un modelo de generación de imágenes. ${context}. El prompt debe sintetizar la idea principal, los materiales y el estilo visual en una sola frase descriptiva.
-          
-          Respuestas de los estudiantes:
-          ---
-          ${studentAnswers}
-          ---
-          
-          REQUISITOS DEL PROMPT:
-          1.  **Idioma y Ortografía:** El prompt DEBE estar en español perfecto, sin errores gramaticales ni de ortografía.
-          2.  **Estilo de Imagen:** El estilo DEBE ser un 'bosquejo de diseño de producto' o 'dibujo técnico conceptual'. La imagen debe ser clara, detallada, sobre un fondo blanco, mostrando el proyecto como un diagrama de producto.
-          3.  **Imagen Limpia:** Es CRÍTICO que el prompt instruya al modelo de imagen para que genere una imagen completamente limpia, SIN texto, SIN números, SIN medidas y SIN líneas de acotación. Solo el concepto visual del proyecto.
-          
-          Ejemplo de prompt de salida: "Un boceto técnico de un robot rústico, hecho de cartón y madera, con ojos LED brillantes y un brazo de pinza, estilo dibujo de concepto sobre fondo blanco."
-          
-          Genera solo el texto del prompt, sin comillas ni texto introductorio.`,
-      });
-      const imagePrompt = imagePromptGeneratorResponse.text.trim();
+/**
+ * Answers a follow-up question about a specific piece of feedback.
+ */
+export const getConsultationResponse = async (
+  originalFeedback: string,
+  userQuestion: string,
+  discipline: Discipline
+): Promise<string> => {
+  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
   
-      const imageResponse = await aiClient.models.generateImages({
-          model: 'imagen-4.0-generate-001',
-          prompt: imagePrompt,
-          config: {
-            numberOfImages: 1,
-            outputMimeType: 'image/png',
-            aspectRatio: '16:9',
-          },
-      });
-  
-      if (imageResponse.generatedImages && imageResponse.generatedImages.length > 0) {
-        const base64ImageBytes: string = imageResponse.generatedImages[0].image.imageBytes;
-        return `data:image/png;base64,${base64ImageBytes}`;
-      } else {
-        throw new Error('No se pudo generar la imagen del proyecto.');
-      }
-    } catch (error) {
-      handleError(error);
-    }
-  };
+  // FIX: Use 'gemini-2.5-flash' model for text generation tasks.
+  const model = 'gemini-2.5-flash';
+  const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
+Your task is to answer a student's follow-up question about a specific piece of feedback you provided.
+Be concise, clear, and helpful. Your answer should directly address the student's question in 2-3 sentences.`;
 
-  export const getConsultationResponse = async (originalMessageText: string, userQuestion: string, discipline: string): Promise<string> => {
-    const aiClient = getAiClient();
-    const { persona } = getMentorContext(discipline);
-    const prompt = `
-      ${persona} A continuación se muestra una respuesta que diste previamente y una pregunta de seguimiento de un estudiante.
-  
-      Respuesta Anterior:
-      ---
-      ${originalMessageText}
-      ---
-  
-      Pregunta del Estudiante:
-      ---
-      ${userQuestion}
-      ---
-  
-      Responde la pregunta del estudiante de manera clara y concisa, ayudándole a entender mejor o a resolver su duda. Sé directo y ve al grano.
-    `;
-  
-    try {
-      const response = await aiClient.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-      return response.text;
-    } catch (error) {
-      handleError(error);
-    }
-  };
+  const prompt = `
+    Context: Here is the original feedback you provided to the student:
+    "${originalFeedback}"
+
+    The student now has a follow-up question about this feedback:
+    "${userQuestion}"
+
+    Please provide a direct and helpful answer to their question.
+  `;
+
+  try {
+    // FIX: Use ai.models.generateContent for text generation.
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        systemInstruction,
+      },
+    });
+
+    // FIX: Extract text from response using the .text property.
+    return response.text;
+  } catch (error) {
+    console.error("Error getting consultation response:", error);
+    throw new Error("Failed to get an answer from the AI. Please try again.");
+  }
+};
