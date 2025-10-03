@@ -199,59 +199,51 @@ const getDesignFeedback = async (studentAnswersString, discipline) => {
 };
 const generateProjectImage = async (studentAnswersString, discipline) => {
   if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
-
-  const model = 'gemini-2.5-flash-image';
-  
+  // Usa el modelo y la API correctos para la generación de imágenes.
+  const model = 'imagen-4.0-generate-001';
   const answers = JSON.parse(studentAnswersString);
   const name = answers.name || `un proyecto de ${discipline}`;
   const idea = answers.idea || 'un dispositivo innovador';
   const style = answers.style || 'un estilo de arte conceptual';
   const materials = answers.materials || 'varios materiales';
-
   const prompt = `
-    Genera un arte conceptual profesional y de alta calidad de un proyecto estudiantil llamado "${name}".
-    El proyecto es: ${idea}.
-    Tiene una estética de "${style}" y está hecho principalmente de ${materials}.
-    La imagen debe ser un boceto de diseño de producto limpio sobre un fondo blanco, destacando sus características clave.
-    Tono vibrante, optimista e inspirador.
+    Un boceto de diseño de producto, limpio, profesional y de alta calidad sobre un fondo blanco.
+    El proyecto estudiantil se llama "${name}".
+    Concepto: ${idea}.
+    Estética: "${style}".
+    Materiales principales: ${materials}.
+    La imagen debe resaltar las características clave del proyecto con un tono vibrante, optimista e inspirador.
   `;
-
   try {
-    const response = await ai.models.generateContent({
+    const response = await ai.models.generateImages({
       model,
-      contents: {
-        parts: [{ text: prompt }],
-      },
+      prompt: prompt,
       config: {
-        responseModalities: ["IMAGE", "TEXT"],
+        numberOfImages: 1,
+        outputMimeType: 'image/png',
+        aspectRatio: '1:1',
       },
     });
-
-    if (response.candidates && response.candidates.length > 0 && response.candidates[0].content && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData && part.inlineData.data) {
-          const base64ImageBytes = part.inlineData.data;
-          const mimeType = part.inlineData.mimeType || 'image/png';
-          return `data:${mimeType};base64,${base64ImageBytes}`;
-        }
-      }
+    if (response.generatedImages && response.generatedImages.length > 0 && response.generatedImages[0].image && response.generatedImages[0].image.imageBytes) {
+      const base64ImageBytes = response.generatedImages[0].image.imageBytes;
+      return `data:image/png;base64,${base64ImageBytes}`;
     }
-    
     throw new Error("La IA no generó una imagen. La respuesta no contenía datos de imagen.");
-
   } catch (apiError) {
-    console.error("Error generating project image with gemini-2.5-flash-image:", apiError);
-    
+    console.error("Error generating project image with imagen-4.0-generate-001:", apiError);
     if (apiError.message && apiError.message.toLowerCase().includes('billed users')) {
-        console.warn('Image generation skipped: API key is not for a billed account.');
-        return null;
+      console.warn('Image generation skipped: API key is not for a billed account.');
+      return null;
     }
-
     let userMessage = `Hubo un error al generar la imagen del proyecto. Detalle técnico: ${apiError.message}`;
-    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
-      userMessage = "La clave de API parece ser inválida o no tiene permisos para generar imágenes. Por favor, verifica tu clave en Google AI Studio.";
-    } else if (apiError.message && apiError.message.toLowerCase().includes('safety')) {
-      userMessage = "La solicitud para generar la imagen fue bloqueada por filtros de seguridad. Intenta reformular la idea o el nombre del proyecto.";
+    if (apiError.message) {
+      if (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied')) {
+        userMessage = "La clave de API parece ser inválida o no tiene permisos para generar imágenes. Por favor, verifica tu clave en Google AI Studio.";
+      } else if (apiError.message.toLowerCase().includes('safety')) {
+        userMessage = "La solicitud para generar la imagen fue bloqueada por filtros de seguridad. Intenta reformular la idea o el nombre del proyecto.";
+      } else if (apiError.message.includes('429') || apiError.message.toLowerCase().includes('quota exceeded')) {
+        userMessage = "Has excedido tu cuota de uso gratuito para la generación de imágenes. Por favor, espera un momento o revisa tu plan y detalles de facturación en Google AI Studio.";
+      }
     }
     throw new Error(userMessage);
   }
