@@ -1,6 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Discipline } from '../questions';
 
+// ¡IMPORTANTE! Reemplaza el texto de abajo con tu clave de API real de Google AI Studio.
+// Si no lo haces, la aplicación te mostrará un error de configuración en pantalla.
+const API_KEY = "PEGA_AQUÍ_TU_API_KEY";
+
 // This will be initialized by the initializeAi function.
 let ai: GoogleGenAI;
 
@@ -11,15 +15,17 @@ let ai: GoogleGenAI;
  */
 export const initializeAi = (): string | null => {
   try {
-    if (!process.env.API_KEY) {
-      throw new Error("API key is missing. Please set the API_KEY environment variable.");
+    if (!API_KEY || API_KEY === "PEGA_AQUÍ_TU_API_KEY") {
+      throw new Error(
+        "Falta la API Key de Gemini. Debes editar el archivo 'services/geminiService.ts', buscar la variable 'API_KEY' y pegar tu clave secreta de Google AI Studio para que la aplicación funcione."
+      );
     }
-    // FIX: Initialize the GoogleGenAI client with the API key from environment variables.
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return null;
+    ai = new GoogleGenAI({ apiKey: API_KEY });
+    return null; // Initialization successful
   } catch (e: any) {
     console.error("Failed to initialize GoogleGenAI:", e);
-    return e.message || "An unknown error occurred during AI initialization.";
+    // Return a user-friendly message
+    return `Error al inicializar la IA. Asegúrate de que tu API Key sea correcta. Detalle: ${e.message}`;
   }
 };
 
