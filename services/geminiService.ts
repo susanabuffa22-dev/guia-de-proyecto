@@ -3,7 +3,7 @@ import type { Discipline } from '../questions';
 
 // ¡IMPORTANTE! Reemplaza el texto de abajo con tu clave de API real de Google AI Studio.
 // Si no lo haces, la aplicación te mostrará un error de configuración en pantalla.
-const API_KEY = "PEGA_AQUÍ_TU_API_KEY";
+const API_KEY = AIzaSyAenzT31xPfHxTQW9wJAsa5zmDC9gNl39Q;
 
 // This will be initialized by the initializeAi function.
 let ai: GoogleGenAI;
