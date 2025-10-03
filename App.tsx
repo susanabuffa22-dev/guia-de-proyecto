@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ProjectForm } from './components/ProjectForm';
 import { GuideDisplay, Message, ConsultationMessage } from './components/GuideDisplay';
-import { getDesignFeedback, generateCustomGuide, generateProjectImage, getConsultationResponse } from './services/geminiService';
+import { getDesignFeedback, generateCustomGuide, generateProjectImage, getConsultationResponse, initializeAi } from './services/geminiService';
 import { BookOpenIcon } from './components/icons/BookOpenIcon';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { Discipline, DISCIPLINE_QUESTIONS, DISCIPLINE_DETAILS } from './questions';
@@ -106,6 +106,16 @@ const App: React.FC = () => {
   const [isConsulting, setIsConsulting] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Initialize the AI service on component mount.
+    // If the API key is missing, this will return an error message
+    // which we can display gracefully to the user.
+    const initError = initializeAi();
+    if (initError) {
+      setError(initError);
+    }
+  }, []); // Empty dependency array ensures this runs only once.
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -291,51 +301,72 @@ const App: React.FC = () => {
     }
   };
 
-  if (!discipline) {
-    return <DisciplineSelector onSelectDiscipline={handleSelectDiscipline} />;
-  }
+  const renderContent = () => {
+    if (error) {
+        return (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-md mt-8" role="alert">
+            <p className="font-bold text-lg mb-2">Error de Configuración</p>
+            <p>{error}</p>
+          </div>
+        );
+    }
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
-      <header className="text-center mb-8">
-        <div className="flex justify-center items-center gap-4 mb-4">
-          <BookOpenIcon className="h-10 w-10 text-sky-600" />
-          <h1 className="text-4xl font-bold text-slate-900">
-            {DISCIPLINE_DETAILS[discipline].title}
-          </h1>
-        </div>
-        <p className="text-lg text-slate-600">
-          Responde a las siguientes preguntas para que el mentor de IA pueda ayudarte a crear una guía de proyecto.
-        </p>
-      </header>
+    if (!discipline) {
+      return <DisciplineSelector onSelectDiscipline={handleSelectDiscipline} />;
+    }
 
-      <main>
-        {!answers ? (
-          <ProjectForm
-            onSubmitAnswers={handleSubmitAnswers}
-            questions={DISCIPLINE_QUESTIONS[discipline]}
-            isLoading={isLoading}
-          />
-        ) : (
-          <>
-            <GuideDisplay
-              messages={messages}
-              isLoading={isLoading}
-              loadingMessage={loadingMessage}
-              error={error}
-              onPrint={handlePrintGuide}
-              onToggleAgreement={handleToggleAgreement}
-              onSendConsultation={handleSendConsultation}
-              consultationInputs={consultationInputs}
-              onConsultationInputChange={(id, val) => setConsultationInputs(prev => ({...prev, [id]: val}))}
-              isConsulting={isConsulting}
-            />
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </main>
-    </div>
-  );
+    if (!answers) {
+      return (
+        <ProjectForm
+          onSubmitAnswers={handleSubmitAnswers}
+          questions={DISCIPLINE_QUESTIONS[discipline]}
+          isLoading={isLoading}
+        />
+      );
+    }
+
+    return (
+      <>
+        <GuideDisplay
+          messages={messages}
+          isLoading={isLoading}
+          loadingMessage={loadingMessage}
+          error={error}
+          onPrint={handlePrintGuide}
+          onToggleAgreement={handleToggleAgreement}
+          onSendConsultation={handleSendConsultation}
+          consultationInputs={consultationInputs}
+          onConsultationInputChange={(id, val) => setConsultationInputs(prev => ({...prev, [id]: val}))}
+          isConsulting={isConsulting}
+        />
+        <div ref={messagesEndRef} />
+      </>
+    );
+  };
+
+  const MainWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    if (!discipline) {
+      return <>{children}</>;
+    }
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+        <header className="text-center mb-8">
+          <div className="flex justify-center items-center gap-4 mb-4">
+            <BookOpenIcon className="h-10 w-10 text-sky-600" />
+            <h1 className="text-4xl font-bold text-slate-900">
+              {DISCIPLINE_DETAILS[discipline].title}
+            </h1>
+          </div>
+          <p className="text-lg text-slate-600">
+            Responde a las siguientes preguntas para que el mentor de IA pueda ayudarte a crear una guía de proyecto.
+          </p>
+        </header>
+        <main>{children}</main>
+      </div>
+    );
+  };
+
+  return <MainWrapper>{renderContent()}</MainWrapper>;
 };
 
 export default App;

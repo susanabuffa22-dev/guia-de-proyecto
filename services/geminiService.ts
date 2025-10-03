@@ -3,11 +3,41 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set");
+let ai: GoogleGenAI | null = null;
+
+/**
+ * Initializes the GoogleGenAI client.
+ * Must be called once when the application starts.
+ * @returns An error message string if initialization fails, otherwise null.
+ */
+export const initializeAi = (): string | null => {
+  if (ai) return null; // Already initialized
+
+  if (!API_KEY) {
+    return "La variable de entorno API_KEY no está configurada. Para solucionarlo, ve a la configuración de tu sitio en Netlify, busca 'Build & deploy' > 'Environment' y añade una variable de entorno con la clave `API_KEY` y tu clave de API como valor. Después de añadirla, necesitas volver a desplegar tu sitio desde la pestaña 'Deploys'.";
+  }
+
+  try {
+    ai = new GoogleGenAI({ apiKey: API_KEY });
+    return null; // Success
+  } catch (error: any) {
+    console.error("Error initializing GoogleGenAI:", error);
+    return `Error al inicializar la IA: ${error.message}`;
+  }
+};
+
+/**
+ * Gets the initialized AI client. Throws an error if it hasn't been initialized.
+ * @returns The initialized GoogleGenAI client instance.
+ */
+const getAiClient = (): GoogleGenAI => {
+    if (!ai) {
+        // This error is for developers, the user-facing error is handled in initializeAi
+        throw new Error("El cliente de IA no ha sido inicializado. Llama a initializeAi() al iniciar la aplicación.");
+    }
+    return ai;
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 const handleError = (error: unknown): never => {
   console.error("Error calling Gemini API:", error);
@@ -48,6 +78,7 @@ const getMentorContext = (discipline: string): { persona: string; context: strin
 }
 
 export const getDesignFeedback = async (studentAnswers: string, discipline: string): Promise<FeedbackCard[]> => {
+  const aiClient = getAiClient();
   const { persona, context } = getMentorContext(discipline);
   const prompt = `
     ${persona} Tu misión es analizar su plan de proyecto y dar retroalimentación constructiva. ${context} Divide tu retroalimentación en tarjetas de sugerencia separadas y concisas.
@@ -67,7 +98,7 @@ export const getDesignFeedback = async (studentAnswers: string, discipline: stri
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -107,6 +138,7 @@ export const getDesignFeedback = async (studentAnswers: string, discipline: stri
 };
 
 export const generateCustomGuide = async (studentAnswers: string, conversationHistory: string, discipline: string): Promise<string> => {
+    const aiClient = getAiClient();
     const { persona } = getMentorContext(discipline);
     const prompt = `
       ${persona} Tu misión es crear una guía de proyecto detallada y personalizada basada en el plan de un grupo de estudiantes.
@@ -146,7 +178,7 @@ export const generateCustomGuide = async (studentAnswers: string, conversationHi
       `;
   
     try {
-      const response = await ai.models.generateContent({
+      const response = await aiClient.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
       });
@@ -158,9 +190,10 @@ export const generateCustomGuide = async (studentAnswers: string, conversationHi
 
 
   export const generateProjectImage = async (studentAnswers: string, discipline: string): Promise<string> => {
+    const aiClient = getAiClient();
     const { context } = getMentorContext(discipline);
     try {
-      const imagePromptGeneratorResponse = await ai.models.generateContent({
+      const imagePromptGeneratorResponse = await aiClient.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: `Basado en estas respuestas de estudiantes sobre su proyecto de ${discipline}, crea un prompt conciso y descriptivo en español para un modelo de generación de imágenes. ${context}. El prompt debe sintetizar la idea principal, los materiales y el estilo visual en una sola frase descriptiva.
           
@@ -180,7 +213,7 @@ export const generateCustomGuide = async (studentAnswers: string, conversationHi
       });
       const imagePrompt = imagePromptGeneratorResponse.text.trim();
   
-      const imageResponse = await ai.models.generateImages({
+      const imageResponse = await aiClient.models.generateImages({
           model: 'imagen-4.0-generate-001',
           prompt: imagePrompt,
           config: {
@@ -202,6 +235,7 @@ export const generateCustomGuide = async (studentAnswers: string, conversationHi
   };
 
   export const getConsultationResponse = async (originalMessageText: string, userQuestion: string, discipline: string): Promise<string> => {
+    const aiClient = getAiClient();
     const { persona } = getMentorContext(discipline);
     const prompt = `
       ${persona} A continuación se muestra una respuesta que diste previamente y una pregunta de seguimiento de un estudiante.
@@ -220,7 +254,7 @@ export const generateCustomGuide = async (studentAnswers: string, conversationHi
     `;
   
     try {
-      const response = await ai.models.generateContent({
+      const response = await aiClient.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
       });
