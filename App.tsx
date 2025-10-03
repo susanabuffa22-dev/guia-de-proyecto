@@ -3,9 +3,9 @@ import { ProjectForm } from './components/ProjectForm';
 import { GuideDisplay, Message, ConsultationMessage } from './components/GuideDisplay';
 import { getDesignFeedback, generateCustomGuide, generateProjectImage, getConsultationResponse, initializeAi } from './services/geminiService';
 import { BookOpenIcon } from './components/icons/BookOpenIcon';
-import { SparklesIcon } from './components/icons/SparklesIcon';
 import { Discipline, DISCIPLINE_QUESTIONS, DISCIPLINE_DETAILS } from './questions';
 import { DisciplineSelector } from './components/DisciplineSelector';
+import { ApiKeySetup } from './components/ApiKeySetup';
 
 // Helper to convert the guide text to a full HTML document for printing
 const convertGuideToHtml = (message: Message): string => {
@@ -96,10 +96,11 @@ const convertGuideToHtml = (message: Message): string => {
 
 
 const App: React.FC = () => {
+  const [isApiKeyNeeded, setIsApiKeyNeeded] = useState(false);
   const [discipline, setDiscipline] = useState<Discipline | null>(null);
   const [answers, setAnswers] = useState<Record<string, string> | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true during initial check
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [consultationInputs, setConsultationInputs] = useState<Record<string, string>>({});
@@ -108,14 +109,36 @@ const App: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Initialize the AI service on component mount.
-    // If the API key is missing, this will return an error message
-    // which we can display gracefully to the user.
-    const initError = initializeAi();
+    // Check for API key on initial load
+    const storedKey = localStorage.getItem('GEMINI_API_KEY');
+    if (storedKey) {
+      const initError = initializeAi(storedKey);
+      if (initError) {
+        setError(initError + " Por favor, introduce una clave válida.");
+        localStorage.removeItem('GEMINI_API_KEY'); // Remove invalid key
+        setIsApiKeyNeeded(true);
+      } else {
+        setIsApiKeyNeeded(false);
+      }
+    } else {
+      setIsApiKeyNeeded(true);
+    }
+    setIsLoading(false);
+  }, []);
+
+  const handleSaveApiKey = (key: string) => {
+    setIsLoading(true);
+    setError(null);
+    const initError = initializeAi(key);
     if (initError) {
       setError(initError);
+      setIsLoading(false);
+    } else {
+      localStorage.setItem('GEMINI_API_KEY', key);
+      setIsApiKeyNeeded(false);
+      setIsLoading(false);
     }
-  }, []); // Empty dependency array ensures this runs only once.
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -123,7 +146,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (messages.length > 0) {
-        // Scroll only when a new message is added, not on updates like 'isAgreed'
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.type !== 'answer' && !lastMessage.isAgreed) {
             scrollToBottom();
@@ -227,7 +249,6 @@ const App: React.FC = () => {
 
       if (allAgreed && answers) {
         const studentAnswersString = JSON.stringify(answers, null, 2);
-        // Using a timeout to let the state update before generating the guide
         setTimeout(() => generateGuide(studentAnswersString), 0);
       }
       
@@ -302,13 +323,19 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-    if (error) {
-        return (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-md mt-8" role="alert">
-            <p className="font-bold text-lg mb-2">Error de Configuración</p>
-            <p>{error}</p>
-          </div>
-        );
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center h-screen">
+          <svg className="animate-spin h-8 w-8 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+      );
+    }
+
+    if (isApiKeyNeeded) {
+        return <ApiKeySetup onSave={handleSaveApiKey} error={error} isLoading={isLoading} />;
     }
 
     if (!discipline) {
@@ -345,7 +372,7 @@ const App: React.FC = () => {
   };
 
   const MainWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    if (!discipline) {
+    if (isApiKeyNeeded || !discipline) {
       return <>{children}</>;
     }
     return (

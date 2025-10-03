@@ -1,26 +1,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Discipline } from '../questions';
 
-// ¡IMPORTANTE! Reemplaza el texto de abajo con tu clave de API real de Google AI Studio.
-// Si no lo haces, la aplicación te mostrará un error de configuración en pantalla.
-const API_KEY = AIzaSyAenzT31xPfHxTQW9wJAsa5zmDC9gNl39Q;
-
 // This will be initialized by the initializeAi function.
 let ai: GoogleGenAI;
 
 /**
- * Initializes the GoogleGenAI client.
+ * Initializes the GoogleGenAI client with a user-provided API key.
  * Must be called once when the application starts.
- * @returns An error message if the API key is missing, otherwise null.
+ * @param apiKey The Gemini API key provided by the user.
+ * @returns An error message if the API key is missing or invalid, otherwise null.
  */
-export const initializeAi = (): string | null => {
+export const initializeAi = (apiKey: string): string | null => {
   try {
-    if (!API_KEY || API_KEY === "PEGA_AQUÍ_TU_API_KEY") {
-      throw new Error(
-        "Falta la API Key de Gemini. Debes editar el archivo 'services/geminiService.ts', buscar la variable 'API_KEY' y pegar tu clave secreta de Google AI Studio para que la aplicación funcione."
-      );
+    if (!apiKey) {
+      throw new Error("La API Key no puede estar vacía.");
     }
-    ai = new GoogleGenAI({ apiKey: API_KEY });
+    ai = new GoogleGenAI({ apiKey: apiKey });
     return null; // Initialization successful
   } catch (e: any) {
     console.error("Failed to initialize GoogleGenAI:", e);
@@ -40,7 +35,6 @@ export const getDesignFeedback = async (
 ): Promise<{ title: string; content: string }[]> => {
   if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
 
-  // FIX: Use 'gemini-2.5-flash' model for text generation tasks.
   const model = 'gemini-2.5-flash';
   const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop. Your task is to review a student's project plan.
 - If the plan is clear, consistent, and feasible, return an empty array.
@@ -59,13 +53,11 @@ export const getDesignFeedback = async (
   `;
   
   try {
-    // FIX: Use ai.models.generateContent and provide model, contents, and config.
     const response = await ai.models.generateContent({
       model,
       contents: prompt,
       config: {
         systemInstruction,
-        // FIX: Use responseMimeType and responseSchema to get structured JSON output.
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -81,7 +73,6 @@ export const getDesignFeedback = async (
       },
     });
 
-    // FIX: Extract text from response using the .text property.
     const jsonText = response.text.trim();
     if (!jsonText) {
         console.warn("Gemini API returned an empty response for feedback.");
@@ -105,7 +96,6 @@ export const generateProjectImage = async (
 ): Promise<string> => {
   if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
 
-  // FIX: Use 'imagen-4.0-generate-001' model for image generation tasks.
   const model = 'imagen-4.0-generate-001';
   
   const answers = JSON.parse(studentAnswersString);
@@ -123,7 +113,6 @@ export const generateProjectImage = async (
   `;
 
   try {
-    // FIX: Use ai.models.generateImages for image generation.
     const response = await ai.models.generateImages({
       model,
       prompt,
@@ -156,7 +145,6 @@ export const generateCustomGuide = async (
 ): Promise<string> => {
   if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
 
-  // FIX: Use 'gemini-2.5-flash' model for text generation tasks.
   const model = 'gemini-2.5-flash';
   const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
 Your task is to generate a comprehensive, step-by-step project guide for a student.
@@ -189,7 +177,6 @@ Use this information to create a personalized, encouraging, and clear guide.
   `;
 
   try {
-    // FIX: Use ai.models.generateContent for text generation.
     const response = await ai.models.generateContent({
       model,
       contents: prompt,
@@ -198,7 +185,6 @@ Use this information to create a personalized, encouraging, and clear guide.
       },
     });
 
-    // FIX: Extract text from response using the .text property.
     return response.text;
   } catch (error) {
     console.error("Error generating custom guide:", error);
@@ -217,7 +203,6 @@ export const getConsultationResponse = async (
 ): Promise<string> => {
   if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
   
-  // FIX: Use 'gemini-2.5-flash' model for text generation tasks.
   const model = 'gemini-2.5-flash';
   const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
 Your task is to answer a student's follow-up question about a specific piece of feedback you provided.
@@ -234,7 +219,6 @@ Be concise, clear, and helpful. Your answer should directly address the student'
   `;
 
   try {
-    // FIX: Use ai.models.generateContent for text generation.
     const response = await ai.models.generateContent({
       model,
       contents: prompt,
@@ -243,7 +227,6 @@ Be concise, clear, and helpful. Your answer should directly address the student'
       },
     });
 
-    // FIX: Extract text from response using the .text property.
     return response.text;
   } catch (error) {
     console.error("Error getting consultation response:", error);
