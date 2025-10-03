@@ -140,19 +140,19 @@ const initializeAi = (apiKey) => {
 const getDesignFeedback = async (studentAnswersString, discipline) => {
   if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'gemini-2.5-flash';
-  const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop. Your task is to review a student's project plan.
-- If the plan is clear, consistent, and feasible, return an empty array.
-- If there are potential issues, contradictions, or areas for improvement, provide CONCISE and CONSTRUCTIVE feedback.
-- Frame your feedback as helpful suggestions, not criticisms.
-- Each piece of feedback should be an object with a "title" (a short, catchy phrase) and "content" (a 1-2 sentence explanation).
-- Return a maximum of 3 feedback cards. Do not overwhelm the student.`;
+  const systemInstruction = `Eres un mentor experto de IA para un taller de ${discipline}. Tu tarea es revisar el plan de proyecto de un estudiante. Todas tus respuestas DEBEN estar en español.
+- Si el plan es claro, consistente y factible, devuelve un array vacío.
+- Si hay posibles problemas, contradicciones o áreas de mejora, proporciona comentarios CONCISOS y CONSTRUCTIVOS.
+- Formula tus comentarios como sugerencias útiles, no como críticas.
+- Cada comentario debe ser un objeto con un "title" (una frase corta y llamativa) y "content" (una explicación de 1 a 2 frases).
+- Devuelve un máximo de 3 tarjetas de comentarios. No abrumes al estudiante.`;
   const prompt = `
-    Student's Project Plan (JSON):
+    Plan de Proyecto del Estudiante (JSON):
     ${studentAnswersString}
 
-    Review this plan and provide feedback based on your instructions.
-    If the plan is good, respond with an empty JSON array: [].
-    If there are suggestions, respond with a JSON array of feedback objects.
+    Revisa este plan y proporciona comentarios basados en tus instrucciones.
+    Si el plan es bueno, responde con un array JSON vacío: [].
+    Si hay sugerencias, responde con un array JSON de objetos de comentarios.
   `;
   try {
     const response = await ai.models.generateContent({
@@ -206,11 +206,11 @@ const generateProjectImage = async (studentAnswersString, discipline) => {
   const style = answers.style || 'un estilo de arte conceptual';
   const materials = answers.materials || 'varios materiales';
   const prompt = `
-    A professional, high-quality concept art of a student project named "${name}".
-    The project is: ${idea}.
-    It has a ${style} aesthetic and is primarily made of ${materials}.
-    The image should be a clean product design sketch on a white background, highlighting its key features.
-    Vibrant, optimistic, and inspiring tone.
+    Un arte conceptual profesional y de alta calidad de un proyecto estudiantil llamado "${name}".
+    El proyecto es: ${idea}.
+    Tiene una estética de "${style}" y está hecho principalmente de ${materials}.
+    La imagen debe ser un boceto de diseño de producto limpio sobre un fondo blanco, destacando sus características clave.
+    Tono vibrante, optimista e inspirador.
   `;
   try {
     const response = await ai.models.generateImages({
@@ -239,33 +239,33 @@ const generateProjectImage = async (studentAnswersString, discipline) => {
 const generateCustomGuide = async (studentAnswersString, conversationHistory, discipline) => {
   if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'gemini-2.5-flash';
-  const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
-Your task is to generate a comprehensive, step-by-step project guide for a student.
-You will be given the student's initial answers and the conversation history (feedback and clarifications).
-Use this information to create a personalized, encouraging, and clear guide.
+  const systemInstruction = `Eres un mentor experto de IA para un taller de ${discipline}.
+Tu tarea es generar una guía de proyecto completa y paso a paso para un estudiante.
+Se te proporcionarán las respuestas iniciales del estudiante y el historial de la conversación (comentarios y aclaraciones).
+Usa esta información para crear una guía personalizada, alentadora y clara.
+Toda la guía DEBE estar en español.
 
-**Output Format Rules:**
-- The guide MUST be structured into the following 5 sections, in this exact order and using these exact titles with emojis:
+**Reglas de Formato de Salida:**
+- La guía DEBE estructurarse en las siguientes 5 secciones, en este orden exacto y usando estos títulos exactos con emojis:
   1. 📝 Resumen del Proyecto
   2. 🎨 Concepto Visual: ¿Cómo se verá?
   3. 🛠️ Materiales y Herramientas
   4. ⏰ Plan de Acción Detallado (Fases)
   5. 🗺️ Próximos Pasos y Consejos
-- The "Concepto Visual" section should only contain its title. The app will insert the image there.
-- Under "Materiales y Herramientas", use bullet points for lists (e.g., "* Componentes Electrónicos:", "* Herramientas:").
-- Under "Plan de Acción Detallado", break the project into 3-5 logical "Fase"s (e.g., "Fase 1: Diseño y Prototipado en Papel").
-- For each phase, provide a list of concrete, actionable steps using bullet points (*).
-- Keep the language clear, encouraging, and accessible for a student.
-- DO NOT add any introduction or conclusion outside of the 5 sections. Start directly with "1. 📝 Resumen del Proyecto".
-`;
+- La sección "Concepto Visual" solo debe contener su título. La aplicación insertará la imagen allí.
+- En "Materiales y Herramientas", usa viñetas para las listas (ej., "* Componentes Electrónicos:", "* Herramientas:").
+- En "Plan de Acción Detallado", divide el proyecto en 3-5 "Fase"s lógicas (ej., "Fase 1: Diseño y Prototipado en Papel").
+- Para cada fase, proporciona una lista de pasos concretos y accionables usando viñetas (*).
+- Mantén el lenguaje claro, alentador y accesible para un estudiante.
+- NO agregues ninguna introducción o conclusión fuera de las 5 secciones. Comienza directamente con "1. 📝 Resumen del Proyecto".`;
   const prompt = `
-    Student's Project Plan (JSON):
+    Plan de Proyecto del Estudiante (JSON):
     ${studentAnswersString}
 
-    Conversation History:
-    ${conversationHistory || 'No feedback was needed.'}
+    Historial de Conversación:
+    ${conversationHistory || 'No se necesitaron comentarios.'}
 
-    Generate the project guide based on all the provided information and following the output format rules precisely.
+    Genera la guía del proyecto basada en toda la información proporcionada y siguiendo las reglas de formato de salida con precisión.
   `;
   try {
     const response = await ai.models.generateContent({
@@ -287,17 +287,17 @@ Use this information to create a personalized, encouraging, and clear guide.
 const getConsultationResponse = async (originalFeedback, userQuestion, discipline) => {
   if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'gemini-2.5-flash';
-  const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
-Your task is to answer a student's follow-up question about a specific piece of feedback you provided.
-Be concise, clear, and helpful. Your answer should directly address the student's question in 2-3 sentences.`;
+  const systemInstruction = `Eres un mentor experto de IA para un taller de ${discipline}.
+Tu tarea es responder la pregunta de seguimiento de un estudiante sobre un comentario específico que proporcionaste.
+Sé conciso, claro y útil. Tu respuesta debe abordar directamente la pregunta del estudiante en 2-3 frases y DEBE estar en español.`;
   const prompt = `
-    Context: Here is the original feedback you provided to the student:
+    Contexto: Este es el comentario original que le diste al estudiante:
     "${originalFeedback}"
 
-    The student now has a follow-up question about this feedback:
+    Ahora el estudiante tiene una pregunta de seguimiento sobre este comentario:
     "${userQuestion}"
 
-    Please provide a direct and helpful answer to their question.
+    Por favor, proporciona una respuesta directa y útil a su pregunta.
   `;
   try {
     const response = await ai.models.generateContent({
