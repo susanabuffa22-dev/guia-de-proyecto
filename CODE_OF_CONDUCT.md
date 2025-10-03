@@ -36,7 +36,7 @@ Este Código de Conducta se aplica tanto dentro de los espacios del proyecto com
 
 ## Aplicación
 
-Los casos de comportamiento abusivo, acosador o inaceptable pueden ser reportados a los líderes de la comunidad responsables de la aplicación en **[INSERTAR EMAIL DE CONTACTO]**. Todas las quejas serán revisadas e investigadas de manera rápida y justa.
+Los casos de comportamiento abusivo, acosador o inaceptable pueden ser reportados a los líderes de la comunidad responsables de la aplicación en **[tu-email-aqui@ejemplo.com]**. Todas las quejas serán revisadas e investigadas de manera rápida y justa.
 
 Todos los líderes de la comunidad están obligados a respetar la privacidad y la seguridad del informante de cualquier incidente.
 

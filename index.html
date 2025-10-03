@@ -20,6 +20,75 @@
       .animate-fade-in {
         animation: fadeIn 0.5s ease-out forwards;
       }
+      @media print {
+        /* Hide everything by default */
+        body * {
+          visibility: hidden;
+        }
+
+        /* Make the printable container and its children visible */
+        #printable-guide, #printable-guide * {
+          visibility: visible;
+        }
+        
+        /* Position the printable container to take up the whole page */
+        #printable-guide {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0 !important;
+          padding: 20px !important; /* A reasonable print margin */
+          box-shadow: none !important;
+          border: none !important;
+        }
+
+        /* General print styling */
+        body {
+          background-color: #ffffff !important;
+          color: #000000 !important;
+          font-size: 12pt;
+        }
+        
+        /* Hide elements specifically marked not for printing */
+        .no-print {
+          display: none !important;
+        }
+
+        /* Improve layout and readability */
+        h1, h2, h3, h4, h5, h6 {
+          break-after: avoid;
+        }
+
+        p, ul, ol {
+          break-inside: avoid;
+        }
+        
+        /* Style the colored blocks to be print-friendly */
+        .bg-red-50, .bg-indigo-50, .bg-slate-50 {
+          background-color: #f9fafb !important; /* A very light grey */
+          border: 1px solid #e5e7eb !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        
+        .border-l-4 {
+           border-width: 4px !important;
+           border-style: solid !important;
+        }
+        .border-red-400 {
+            border-color: #fca5a5 !important;
+        }
+        .border-indigo-400 {
+            border-color: #a5b4fc !important;
+        }
+        
+        /* Ensure links are just plain text */
+        a, a:visited {
+            text-decoration: none !important;
+            color: #000000 !important;
+        }
+      }
     </style>
   <script type="importmap">
 {

@@ -1,1078 +1,637 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+
+
+import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
-//======= questions.ts =======//
-const DISCIPLINE_QUESTIONS = {
-    technology: [
-        {
-            title: '1. Conceptualización (El "Qué" y el "Por qué")',
-            questions: [
-                { id: 'idea', text: '¿Cuál es la idea principal de nuestro proyecto? ¿Qué queremos construir?' },
-                { id: 'feature', text: '¿Qué función especial o divertida debería tener?' },
-                { id: 'name', text: '¿Qué nombre le pondremos a nuestro proyecto?' },
-            ],
-        },
-        {
-            title: '2. Funcionalidad y Mecánica (El "Cómo funcionará")',
-            questions: [
-                { id: 'movement', text: '¿Cómo se moverá o realizará su acción principal?' },
-                { id: 'electronics', text: '¿Qué componentes electrónicos creemos que serán el "cerebro" y los "músculos"?' },
-                { id: 'challenge', text: '¿Cuál será el mayor desafío técnico que tendremos que resolver?' },
-            ],
-        },
-        {
-            title: '3. Materiales, Estética y Dimensiones (El "Cómo se verá y de qué tamaño será")',
-            questions: [
-                { id: 'materials', text: '¿Qué materiales principales usaremos para construir la estructura?' },
-                { id: 'style', text: '¿Cómo queremos que se vea? ¿Tendrá un estilo futurista, rústico, inspirado en un animal, etc.?' },
-                { id: 'size', text: '¿Qué tamaño aproximado tendrá nuestro proyecto? ¿Será algo pequeño que quepa en la mano, del tamaño de una caja de zapatos, o más grande?' },
-            ],
-        },
-        {
-            title: '4. Interacción y Control (El "Cómo lo manejaremos")',
-            questions: [
-                { id: 'control', text: '¿Cómo le daremos órdenes a nuestro proyecto?' },
-                { id: 'response', text: '¿Cómo nos responderá el proyecto?' },
-            ],
-        },
+// --- HELPERS & ICONS ---
+
+const e = React.createElement;
+
+const SparklesIcon = (props) => e("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, 
+    e("path", { d: "M9.93 2.55a2 2 0 0 0-1.86 0L6.53 4.1a2 2 0 0 1-1.86 0L3.14 2.55a2 2 0 0 0-1.86 0L.14 3.7a2 2 0 0 0 0 3.46l1.54 1.54a2 2 0 0 1 0 1.86L.14 12.1a2 2 0 0 0 0 3.46l1.14 1.14a2 2 0 0 0 1.86 0l1.54-1.54a2 2 0 0 1 1.86 0l1.54 1.54a2 2 0 0 0 1.86 0l1.14-1.14a2 2 0 0 0 0-3.46l-1.54-1.54a2 2 0 0 1 0-1.86l1.54-1.54a2 2 0 0 0 0-3.46L9.93 2.55Z" }), 
+    e("path", { d: "M18 5.5a2 2 0 0 0-2-2" }), 
+    e("path", { d: "M22 9.5a2 2 0 0 0-2-2" }), 
+    e("path", { d: "M18 18.5a2 2 0 0 1 2 2" }), 
+    e("path", { d: "M22 14.5a2 2 0 0 1 2 2" })
+);
+
+const SawIcon = (props) => e("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
+    e("path", { d: "m7.24 15.2-4.82 4.82a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l4.82-4.82" }),
+    e("path", { d: "m14 7.5 2.5 2.5" }),
+    e("path", { d: "m18 11.5 2.5 2.5" }),
+    e("path", { d: "m6 16 1-1" }),
+    e("path", { d: "M18 4c-2.5 2.5-6 6-9 9l-4.5 4.5" }),
+    e("path", { d: "m14 3.5 6 6" }),
+    e("path", { d: "m12 6.5 2 2" }),
+    e("path", { d: "m16 10.5 2 2" }),
+    e("path", { d: "M21.17 11.17a2.83 2.83 0 0 0-4-4L15.5 8.85l4 4 1.67-1.68Z" })
+);
+
+const GearsIcon = (props) => e("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
+    e("path", { d: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" }),
+    e("path", { d: "M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" }),
+    e("path", { d: "M12 2v2" }),
+    e("path", { d: "M12 22v-2" }),
+    e("path", { d: "m17 20.66-1-1.73" }),
+    e("path", { d: "M11 10.27 7 3.34" }),
+    e("path", { d: "m20.66 17-1.73-1" }),
+    e("path", { d: "m3.34 7 1.73 1" }),
+    e("path", { d: "M14 12h8" }),
+    e("path", { d: "M2 12h2" }),
+    e("path", { d: "m20.66 7-1.73 1" }),
+    e("path", { d: "m3.34 17 1.73-1" }),
+    e("path", { d: "m17 3.34-1 1.73" }),
+    e("path", { d: "M11 13.73 7 20.66" })
+);
+
+const BotIcon = (props) => e("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, e("path", { d: "M12 8V4H8" }), e("rect", { width: "16", height: "12", x: "4", y: "8", rx: "2" }), e("path", { d: "M2 14h2" }), e("path", { d: "M20 14h2" }), e("path", { d: "M15 13v2" }), e("path", { d: "M9 13v2" }));
+const UserIcon = (props) => e("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, e("path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }), e("circle", { cx: "12", cy: "7", r: "4" }));
+
+// --- QUESTIONS DATABASE ---
+
+const questions = {
+    tecnologia: [
+        { id: 'projectName', label: 'Nombre del Proyecto Tecnológico', placeholder: 'Ej: "Estación Meteorológica con IoT"' },
+        { id: 'projectObjective', label: 'Objetivo Principal del Proyecto', placeholder: 'Ej: "Medir y publicar en línea la temperatura y humedad"' },
+        { id: 'studentLevel', label: 'Nivel de los Estudiantes', options: ['Principiante', 'Intermedio', 'Avanzado'], type: 'select' },
+        { id: 'platform', label: 'Plataforma / Componente Principal', placeholder: 'Ej: "ESP32, Raspberry Pi, Arduino UNO"' },
+        { id: 'components', label: 'Componentes Electrónicos y Software', placeholder: 'Ej: "Sensor DHT22, pantalla OLED, librería Adafruit IO"' },
+        { id: 'tools', label: 'Herramientas y Equipo', placeholder: 'Ej: "Soldador, Multímetro, IDE de programación (VS Code)"' },
+        { id: 'programmingLanguage', label: 'Lenguaje(s) de Programación', placeholder: 'Ej: "MicroPython, C++, JavaScript"' },
     ],
-    carpentry: [
-        {
-            title: '1. Conceptualización (El "Qué" y el "Por qué")',
-            questions: [
-                { id: 'idea', text: '¿Cuál es la idea principal de nuestro proyecto? ¿Qué mueble u objeto de madera vamos a construir?' },
-                { id: 'purpose', text: '¿Cuál será la función principal de este objeto? ¿Para qué servirá?' },
-                { id: 'name', text: '¿Qué nombre le pondremos a nuestro proyecto?' },
-            ],
-        },
-        {
-            title: '2. Diseño y Estética (El "Cómo se verá")',
-            questions: [
-                { id: 'style', text: '¿Qué estilo visual tendrá? (ej. rústico, moderno, minimalista, clásico)' },
-                { id: 'wood_type', text: '¿Qué tipo de madera principal planean usar y por qué?' },
-                { id: 'finish', text: '¿Qué tipo de acabado le daremos? (ej. barniz, aceite, pintura, natural)' },
-            ],
-        },
-        {
-            title: '3. Construcción y Ensamblaje (El "Cómo lo uniremos")',
-            questions: [
-                { id: 'joinery', text: '¿Qué tipo de uniones o ensambles son los más importantes en su diseño? (ej. cola de milano, caja y espiga, tornillos)' },
-                { id: 'challenge', text: '¿Cuál creen que será la parte más difícil o desafiante de cortar o ensamblar?' },
-                { id: 'size', text: '¿Cuáles serán las dimensiones aproximadas del proyecto finalizado?' },
-            ],
-        },
-        {
-            title: '4. Herramientas y Seguridad',
-            questions: [
-                { id: 'tools', text: '¿Qué herramientas manuales o eléctricas son esenciales para su proyecto?' },
-                { id: 'safety', text: '¿Cuál es la medida de seguridad más importante que deben recordar al trabajar en este proyecto?' },
-            ],
-        },
+    carpinteria: [
+        { id: 'projectName', label: 'Nombre del Proyecto', placeholder: 'Ej: "Estantería Flotante de Roble"' },
+        { id: 'projectObjective', label: 'Objetivo Principal del Proyecto', placeholder: 'Ej: "Crear una estantería minimalista para exhibir libros y plantas"' },
+        { id: 'studentLevel', label: 'Nivel de los Estudiantes', options: ['Principiante', 'Intermedio', 'Avanzado'], type: 'select' },
+        { id: 'materials', label: 'Materiales Principales', placeholder: 'Ej: "Madera de roble, tornillos para madera, aceite de tung"' },
+        { id: 'tools', label: 'Herramientas Clave', placeholder: 'Ej: "Sierra de mesa, taladro, lijadora orbital, sargentos"' },
+        { id: 'safety', label: 'Consideraciones de Seguridad Específicas', placeholder: 'Ej: "Uso obligatorio de gafas de seguridad y protectores auditivos"', type: 'textarea' },
     ],
-    mechanics: [
-        {
-            title: '1. Conceptualización (El "Qué" y el "Por qué")',
-            questions: [
-                { id: 'idea', text: '¿Cuál es la idea principal de nuestro proyecto? ¿Qué máquina o sistema mecánico vamos a construir?' },
-                { id: 'principle', text: '¿Qué principio mecánico fundamental demostrará o utilizará? (ej. palanca, engranajes, poleas)' },
-                { id: 'name', text: '¿Qué nombre le pondremos a nuestro proyecto?' },
-            ],
-        },
-        {
-            title: '2. Funcionalidad y Movimiento (El "Cómo funcionará")',
-            questions: [
-                { id: 'input_motion', text: '¿Cómo se iniciará el movimiento o se aplicará la fuerza de entrada?' },
-                { id: 'output_motion', text: '¿Cuál es el movimiento o la acción de salida que se espera del sistema?' },
-                { id: 'transmission', text: '¿Cómo se transmitirá la fuerza o el movimiento desde la entrada hasta la salida?' },
-            ],
-        },
-        {
-            title: '3. Diseño y Materiales (La "Estructura")',
-            questions: [
-                { id: 'materials', text: '¿Qué materiales principales usarán para los componentes clave (ejes, engranajes, estructura)?' },
-                { id: 'components', text: '¿Cuáles son los componentes mecánicos más importantes que necesitarán fabricar o conseguir?' },
-                { id: 'size', text: '¿Qué tamaño aproximado tendrá el mecanismo o máquina final?' },
-            ],
-        },
-        {
-            title: '4. Desafíos y Optimización',
-            questions: [
-                { id: 'challenge', text: '¿Cuál es el mayor desafío técnico que anticipan? (ej. fricción, alineación, resistencia)' },
-                { id: 'optimization', text: '¿Cómo podrían medir si su máquina es "eficiente" o funciona bien?' },
-            ],
-        },
+    mecanica: [
+        { id: 'projectName', label: 'Nombre del Ensamblaje Mecánico', placeholder: 'Ej: "Sistema de Engranajes Planetarios"' },
+        { id: 'projectObjective', label: 'Función Principal del Mecanismo', placeholder: 'Ej: "Reducir la velocidad y aumentar el torque de un motor DC"' },
+        { id: 'studentLevel', label: 'Nivel de los Estudiantes', options: ['Principiante', 'Intermedio', 'Avanzado'], type: 'select' },
+        { id: 'materials', label: 'Materiales Principales', placeholder: 'Ej: "Filamento PLA, tornillería M3, rodamientos 608zz, varillas de acero"' },
+        { id: 'tools', label: 'Herramientas Clave', placeholder: 'Ej: "Impresora 3D, calibre, llaves Allen, taladro de banco"' },
+        { id: 'safety', label: 'Consideraciones de Seguridad Específicas', placeholder: 'Ej: "Usar gafas de seguridad al taladrar, no tocar la boquilla caliente de la impresora 3D"', type: 'textarea' },
     ],
 };
-const DISCIPLINE_DETAILS = {
-    technology: {
-        title: 'Tecnología',
-        description: 'Proyectos con electrónica, programación y robótica.',
-        icon: 'BookOpenIcon',
-    },
-    carpentry: {
-        title: 'Carpintería',
-        description: 'Proyectos de construcción y diseño en madera.',
-        icon: 'SawIcon',
-    },
-    mechanics: {
-        title: 'Mecánica',
-        description: 'Proyectos con engranajes, palancas y sistemas de movimiento.',
-        icon: 'GearsIcon',
-    },
-};
 
-//======= geminiService.ts =======//
-let ai;
-const initializeAi = (apiKey) => {
-  try {
-    if (!apiKey) {
-      throw new Error("La API Key no puede estar vacía.");
+// --- GEMINI API SERVICES ---
+
+const validateApiKey = async (apiKey) => {
+    if (!apiKey) return false;
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: 'test' });
+        return true;
+    } catch (error) {
+        console.error("API Key validation failed:", error);
+        return false;
     }
-    ai = new GoogleGenAI({ apiKey: apiKey });
-    return null;
-  } catch (e) {
-    console.error("Failed to initialize GoogleGenAI:", e);
-    return `Error al inicializar la IA. Asegúrate de que tu API Key sea correcta. Detalle: ${e.message}`;
-  }
 };
 
-const verifyApiKey = async (apiKey) => {
-  if (!apiKey) {
-    return "La clave de API no puede estar vacía.";
-  }
-  try {
-    // Creamos un cliente temporal solo para verificación.
-    const tempAi = new GoogleGenAI({ apiKey });
-    // Una llamada ligera a un modelo rápido para verificar la autenticación.
-    await tempAi.models.generateContent({
+const getInitialSuggestion = async (apiKey, field, initialAnswers) => {
+    const ai = new GoogleGenAI({ apiKey });
+    const context = Object.entries(initialAnswers).map(([key, value]) => `${questions[initialAnswers.discipline].find(q => q.id === key)?.label}: ${value}`).join('\n');
+    const prompt = `
+        Contexto del proyecto:\n${context}\n\n
+        Analiza la siguiente entrada del usuario para el campo "${field.label}": "${initialAnswers[field.id]}".
+        Ofrece una sugerencia constructiva para mejorarla o refinarla. Proporciona una explicación breve y clara de por qué tu sugerencia es beneficiosa.
+        Responde en formato JSON con las claves "suggestion" y "explanation".
+        Ejemplo: {"suggestion": "Estación Meteorológica IoT con ESP32", "explanation": "Añadir 'IoT' y 'ESP32' hace el nombre más específico y técnico, lo cual es ideal para un proyecto de tecnología."}
+    `;
+    const result = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: 'hola', // Un prompt simple y no vacío.
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
     });
-    return null; // Devolver null significa éxito (sin mensaje de error).
-  } catch (apiError) {
-    console.error("La validación de la clave de API falló:", apiError);
-    const msg = apiError.message || '';
-    if (msg.toLowerCase().includes('api key not valid') || msg.toLowerCase().includes('permission denied') || msg.includes('403')) {
-      return "La clave de API parece ser inválida. Por favor, verifica que sea correcta y que esté habilitada en Google AI Studio.";
-    }
-    if (msg.toLowerCase().includes('quota exceeded') || msg.includes('429')) {
-      return "Has excedido tu cuota de uso gratuito. La clave parece correcta, pero no se puede usar en este momento. Revisa tu plan en Google AI Studio.";
-    }
-    return `Ocurrió un error inesperado al verificar la clave: ${msg}`;
-  }
+    return JSON.parse(result.text);
 };
 
-const getDesignFeedback = async (studentAnswersString, discipline) => {
-  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
-  const model = 'gemini-2.5-flash';
-  const systemInstruction = `Eres un mentor experto de IA para un taller de ${discipline}. Tu tarea es revisar el plan de proyecto de un estudiante. Todas tus respuestas DEBEN estar en español.
-- Si el plan es claro, consistente y factible, devuelve un array vacío.
-- Si hay posibles problemas, contradicciones o áreas de mejora, proporciona comentarios CONCISOS y CONSTRUCTIVOS.
-- Formula tus comentarios como sugerencias útiles, no como críticas.
-- Cada comentario debe ser un objeto con un "title" (una frase corta y llamativa) y "content" (una explicación de 1 a 2 frases).
-- Devuelve un máximo de 3 tarjetas de comentarios. No abrumes al estudiante.`;
-  const prompt = `
-    Plan de Proyecto del Estudiante (JSON):
-    ${studentAnswersString}
-
-    Revisa este plan y proporciona comentarios basados en tus instrucciones.
-    Si el plan es bueno, responde con un array JSON vacío: [].
-    Si hay sugerencias, responde con un array JSON de objetos de comentarios.
-  `;
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              content: { type: Type.STRING },
-            },
-            required: ["title", "content"],
-          },
-        },
-      },
-    });
-    const jsonText = response.text.trim();
-    if (!jsonText) {
-      console.warn("Gemini API returned an empty response for feedback, which is expected for good plans.");
-      return [];
-    }
-    try {
-      const feedback = JSON.parse(jsonText);
-      return feedback;
-    } catch (parseError) {
-      console.error("Failed to parse JSON response from AI:", jsonText);
-      throw new Error(`La IA devolvió una respuesta inesperada. Respuesta recibida: "${jsonText}"`);
-    }
-  } catch (apiError) {
-    console.error("Error getting design feedback from Gemini API:", apiError);
-    if (apiError.message && apiError.message.startsWith("La IA devolvió una respuesta inesperada")) {
-        throw apiError;
-    }
-    let userMessage = `Hubo un error al comunicarse con el servicio de IA. Detalle técnico: ${apiError.message}`;
-    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
-      userMessage = "La clave de API parece ser inválida. Por favor, verifica que sea correcta y que esté habilitada.";
-    }
-    throw new Error(userMessage);
-  }
-};
-const generateProjectImage = async (studentAnswersString, discipline) => {
-  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
-  
-  const model = 'imagen-4.0-generate-001';
-  const answers = JSON.parse(studentAnswersString);
-  
-  const idea = answers.idea || 'un dispositivo innovador';
-  const style = answers.style || 'un estilo de arte conceptual';
-  const materials = answers.materials || 'varios materiales';
-  
-  const prompt = `
-    Genera un diagrama de ensamblaje técnico en vista explosionada, como el de un manual de instalación o un plano de despiece.
-    El estilo debe ser un render 3D limpio, detallado y minimalista sobre un fondo completamente blanco.
-    Muestra todos los componentes principales por separado pero alineados, con líneas de puntos o guías tenues que indiquen cómo se conectan y ensamblan.
-    Concepto del proyecto: ${idea}.
-    Estilo visual y estético: "${style}".
-    Materiales principales: ${materials}.
-    IMPORTANTE: La imagen debe ser puramente visual. No incluyas NINGÚN tipo de texto, letras, números, etiquetas, logos o dimensiones.
-  `;
-
-  try {
-    const response = await ai.models.generateImages({
-      model,
-      prompt: prompt,
-      config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/png',
-        aspectRatio: '1:1',
-      },
-    });
-    if (response.generatedImages && response.generatedImages.length > 0 && response.generatedImages[0].image && response.generatedImages[0].image.imageBytes) {
-      const base64ImageBytes = response.generatedImages[0].image.imageBytes;
-      return `data:image/png;base64,${base64ImageBytes}`;
-    }
-    throw new Error("La IA no generó una imagen. La respuesta no contenía datos de imagen.");
-  } catch (apiError) {
-    console.error("Error generating project image with imagen-4.0-generate-001:", apiError);
-    if (apiError.message && apiError.message.toLowerCase().includes('billed users')) {
-      console.warn('Image generation skipped: API key is not for a billed account.');
-      return null;
-    }
-    let userMessage = `Hubo un error al generar la imagen del proyecto. Detalle técnico: ${apiError.message}`;
-    if (apiError.message) {
-      if (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied')) {
-        userMessage = "La clave de API parece ser inválida o no tiene permisos para generar imágenes. Por favor, verifica tu clave en Google AI Studio.";
-      } else if (apiError.message.toLowerCase().includes('safety')) {
-        userMessage = "La solicitud para generar la imagen fue bloqueada por filtros de seguridad. Intenta reformular la idea o el nombre del proyecto.";
-      } else if (apiError.message.includes('429') || apiError.message.toLowerCase().includes('quota exceeded')) {
-        userMessage = "Has excedido tu cuota de uso gratuito para la generación de imágenes. Por favor, espera un momento o revisa tu plan y detalles de facturación en Google AI Studio.";
-      }
-    }
-    throw new Error(userMessage);
-  }
-};
-const generateCustomGuide = async (studentAnswersString, conversationHistory, discipline) => {
-  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
-  const model = 'gemini-2.5-flash';
-  const systemInstruction = `Eres un mentor experto de IA para un taller de ${discipline}.
-Tu tarea es generar una guía de proyecto completa y paso a paso para un estudiante.
-Se te proporcionarán las respuestas iniciales del estudiante y el historial de la conversación (comentarios y aclaraciones).
-Usa esta información para crear una guía personalizada, alentadora y clara.
-Toda la guía DEBE estar en español.
-
-**Reglas de Formato de Salida:**
-- La guía DEBE estructurarse en las siguientes 5 secciones, en este orden exacto y usando estos títulos exactos con emojis:
-  1. 📝 Resumen del Proyecto
-  2. 🎨 Concepto Visual: ¿Cómo se verá?
-  3. 🛠️ Materiales y Herramientas
-  4. ⏰ Plan de Acción Detallado (Fases)
-  5. 🗺️ Próximos Pasos y Consejos
-- La sección "Concepto Visual" solo debe contener su título. La aplicación insertará la imagen allí.
-- En "Materiales y Herramientas", usa viñetas para las listas (ej., "* Componentes Electrónicos:", "* Herramientas:").
-- En "Plan de Acción Detallado", divide el proyecto en 3-5 "Fase"s lógicas (ej., "Fase 1: Diseño y Prototipado en Papel").
-- Para cada fase, proporciona una lista de pasos concretos y accionables usando viñetas (*).
-- Mantén el lenguaje claro, alentador y accesible para un estudiante.
-- NO agregues ninguna introducción o conclusión fuera de las 5 secciones. Comienza directamente con "1. 📝 Resumen del Proyecto".`;
-  const prompt = `
-    Plan de Proyecto del Estudiante (JSON):
-    ${studentAnswersString}
-
-    Historial de Conversación:
-    ${conversationHistory || 'No se necesitaron comentarios.'}
-
-    Genera la guía del proyecto basada en toda la información proporcionada y siguiendo las reglas de formato de salida con precisión.
-  `;
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction,
-      },
-    });
-    return response.text;
-  } catch (apiError) {
-    console.error("Error generating custom guide:", apiError);
-    let userMessage = `Hubo un error al generar la guía del proyecto. Detalle técnico: ${apiError.message}`;
-    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
-      userMessage = "La clave de API parece ser inválida o no tiene permisos para este modelo. Por favor, verifica tu clave en Google AI Studio.";
-    } else if (apiError.message && apiError.message.toLowerCase().includes('safety')) {
-      userMessage = "La solicitud para generar la guía fue bloqueada por filtros de seguridad. Intenta reformular tus respuestas.";
-    }
-    throw new Error(userMessage);
-  }
-};
-const getConsultationResponse = async (originalFeedback, userQuestion, discipline) => {
-  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
-  const model = 'gemini-2.5-flash';
-  const systemInstruction = `Eres un mentor experto de IA para un taller de ${discipline}.
-Tu tarea es responder la pregunta de seguimiento de un estudiante sobre un comentario específico que proporcionaste.
-Sé conciso, claro y útil. Tu respuesta debe abordar directamente la pregunta del estudiante en 2-3 frases y DEBE estar en español.`;
-  const prompt = `
-    Contexto: Este es el comentario original que le diste al estudiante:
-    "${originalFeedback}"
-
-    Ahora el estudiante tiene una pregunta de seguimiento sobre este comentario:
-    "${userQuestion}"
-
-    Por favor, proporciona una respuesta directa y útil a su pregunta.
-  `;
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction,
-      },
-    });
-    return response.text;
-  } catch (apiError) {
-    console.error("Error getting consultation response:", apiError);
-    let userMessage = `Hubo un error al obtener una respuesta de la IA. Detalle técnico: ${apiError.message}`;
-    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
-      userMessage = "La clave de API parece ser inválida, por lo que no se pudo obtener una respuesta.";
-    }
-    throw new Error(userMessage);
-  }
-};
-
-//======= components/icons =======//
-const BookOpenIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" }), React.createElement("path", { d: "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" }));
-const BotIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M12 8V4H8" }), React.createElement("rect", { width: "16", height: "12", x: "4", y: "8", rx: "2" }), React.createElement("path", { d: "M2 14h2" }), React.createElement("path", { d: "M20 14h2" }), React.createElement("path", { d: "M15 13v2" }), React.createElement("path", { d: "M9 13v2" }));
-const UserIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }), React.createElement("circle", { cx: "12", cy: "7", r: "4" }));
-const SawIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "m22 8-2.296 2.296-1.091-1.091-2.015 2.015-1.091-1.091-2.015 2.015-1.091-1.091-2.015 2.015-1.091-1.091-2.015 2.015-1.121-1.121L2 16" }), React.createElement("path", { d: "M9 12a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z" }), React.createElement("path", { d: "M11 11 3 21" }), React.createElement("path", { d: "m15.5 6.5 5.5-5.5" }), React.createElement("path", { d: "M22 13a8.84 8.84 0 0 0-3-5.18" }));
-const GearsIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("circle", { cx: "12", cy: "12", r: "3" }), React.createElement("path", { d: "M12 3v3m0 12v3m9-9h-3M6 12H3m7.05-7.05-2.12 2.12M19.07 19.07l-2.12-2.12M7.05 16.95l2.12-2.12M16.95 7.05l-2.12 2.12" }), React.createElement("circle", { cx: "6", cy: "6", r: "3" }), React.createElement("path", { d: "M6 3v3m0 6V9m4.95-4.95-2.12 2.12M11.07 11.07l-2.12-2.12" }), React.createElement("circle", { cx: "18", cy: "18", r: "3" }), React.createElement("path", { d: "M18 15v3m0 6v-3m4.95-4.95-2.12 2.12M23.07 23.07l-2.12-2.12" }));
-const KeyIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4" }));
-const XIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M18 6 6 18" }), React.createElement("path", { d: "m6 6 12 12" }));
-
-
-//======= components/HelpModal.tsx =======//
-const HelpModal = ({ isOpen, onClose }) => {
-    if (!isOpen) return null;
-    return React.createElement("div", {
-      className: "fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in",
-      onClick: onClose
-    },
-      React.createElement("div", {
-        className: "bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative p-8 m-4",
-        onClick: e => e.stopPropagation()
-      },
-        React.createElement("button", {
-          onClick: onClose,
-          className: "absolute top-4 right-4 text-slate-400 hover:text-slate-800 transition-colors"
-        },
-          React.createElement(XIcon, { className: "h-6 w-6" })
-        ),
-        React.createElement("h2", { className: "text-2xl font-bold text-slate-900 mb-4" }, "Guía Rápida para Obtener tu Clave de API"),
-        React.createElement("p", { className: "text-slate-600 mb-6" }, "¡Es gratis y solo toma un minuto! Sigue estos pasos para comenzar a usar el Mentor de Proyectos IA:"),
-        React.createElement("ol", { className: "list-decimal list-inside space-y-4 text-slate-700" },
-          React.createElement("li", null, React.createElement("strong", null, "Visita Google AI Studio:"), " Haz clic en el enlace que encontrarás al final de esta guía para ir directamente a la página correcta."),
-          React.createElement("li", null, React.createElement("strong", null, "Inicia Sesión:"), " Usa tu cuenta de Google para acceder. Si no tienes una, puedes crearla gratuitamente."),
-          React.createElement("li", null, React.createElement("strong", null, "Obtén la Clave:"), " Busca y haz clic en el botón ", React.createElement("span", { className: "font-mono bg-slate-100 p-1 rounded" }, "Get API key"), " (Obtener clave de API), usualmente ubicado en el menú de la izquierda."),
-          React.createElement("li", null, React.createElement("strong", null, "Crea un Nuevo Proyecto:"), " En la ventana que aparece, haz clic en ", React.createElement("span", { className: "font-mono bg-slate-100 p-1 rounded" }, "Create API key in new project"), " (Crear clave de API en un nuevo proyecto)."),
-          React.createElement("li", null, React.createElement("strong", null, "Copia tu Clave:"), " ¡Listo! Aparecerá una clave larga. Haz clic en el ícono de copiar para guardarla en tu portapapeles."),
-          React.createElement("li", null, React.createElement("strong", null, "Pégala en la App:"), " Vuelve a esta página, cierra esta ventana y pega la clave en el campo correspondiente.")
-        ),
-        React.createElement("div", { className: "mt-8" },
-          React.createElement("a", {
-            href: "https://aistudio.google.com/app/apikey",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "w-full text-center block px-4 py-3 bg-sky-600 text-white font-semibold rounded-md shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors"
-          }, "Ir a Google AI Studio \u2192")
-        )
-      )
-    );
-};
-
-
-//======= components/ApiKeySetup.tsx =======//
-const ApiKeySetup = ({ onSave, error, isLoading }) => {
-  const [apiKey, setApiKey] = useState('');
-  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (isLoading || !apiKey.trim()) return;
-    onSave(apiKey);
-  };
-  return React.createElement(React.Fragment, null,
-    React.createElement(HelpModal, { isOpen: isHelpModalOpen, onClose: () => setIsHelpModalOpen(false) }),
-    React.createElement("div", { className: "min-h-screen bg-slate-100/50 flex flex-col items-center justify-center p-4 animate-fade-in" },
-      React.createElement("div", { className: "w-full max-w-lg" },
-        React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-lg border border-slate-200" },
-          React.createElement("div", { className: "text-center mb-6" },
-            React.createElement("div", { className: "inline-block p-4 bg-sky-100 rounded-full mb-4" },
-              React.createElement(KeyIcon, { className: "h-10 w-10 text-sky-600" })
-            ),
-            React.createElement("h1", { className: "text-3xl font-bold text-slate-900" }, "Configuración Requerida"),
-            React.createElement("p", { className: "text-slate-600 mt-2" }, "Para comenzar, por favor introduce tu clave de API de Gemini.")
-          ),
-          React.createElement("form", { onSubmit: handleSubmit, className: "space-y-4" },
-            React.createElement("div", null,
-              React.createElement("label", { htmlFor: "apiKey", className: "block text-sm font-medium text-slate-700 mb-1" }, "Tu API Key"),
-              React.createElement("input", {
-                id: "apiKey",
-                type: "password",
-                value: apiKey,
-                onChange: (e) => setApiKey(e.target.value),
-                className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 transition",
-                placeholder: "Pega tu clave aquí...",
-                required: true,
-                disabled: isLoading
-              })
-            ),
-            error && React.createElement("div", { className: "bg-red-100 border border-red-300 text-red-800 text-sm p-3 rounded-md" }, error),
-            React.createElement("div", { className: "pt-2" },
-              React.createElement("button", {
-                type: "submit",
-                disabled: isLoading || !apiKey.trim(),
-                className: "w-full flex justify-center items-center gap-2 px-4 py-3 bg-sky-600 text-white font-semibold rounded-md shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
-              },
-              isLoading ?
-                React.createElement(React.Fragment, null,
-                  React.createElement("svg", { className: "animate-spin -ml-1 mr-3 h-5 w-5 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
-                    React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
-                    React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
-                  ), "Verificando..."
-                ) : 'Guardar y Continuar'
-              )
-            )
-          ),
-          React.createElement("div", { className: "mt-6 text-center text-xs text-slate-500" },
-            React.createElement("p", null, "Tu clave se guardará en el almacenamiento de tu navegador."),
-             React.createElement("p", { className: "text-sm mt-2" }, "¿Necesitas ayuda para obtener una clave? ",
-              React.createElement("button", {
-                type: "button",
-                onClick: () => setIsHelpModalOpen(true),
-                className: "font-semibold text-sky-600 hover:underline focus:outline-none"
-              }, "Haz clic aquí.")
-            )
-          )
-        )
-      )
-    )
-  );
-};
-
-//======= components/DisciplineSelector.tsx =======//
-const ICONS = { BookOpenIcon, SawIcon, GearsIcon };
-const DisciplineSelector = ({ onSelectDiscipline }) => {
-  return React.createElement("div", { className: "min-h-screen bg-slate-100/50 flex flex-col items-center justify-center p-4 animate-fade-in" },
-    React.createElement("header", { className: "text-center mb-10" },
-      React.createElement("h1", { className: "text-4xl md:text-5xl font-bold text-slate-900 mb-3" }, "Mentor de Proyectos IA"),
-      React.createElement("p", { className: "text-lg text-slate-600 max-w-2xl" }, "Elige una disciplina para comenzar a planificar tu próximo gran proyecto con la ayuda de la IA.")
-    ),
-    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl" },
-      (Object.keys(DISCIPLINE_DETAILS)).map((key) => {
-        const details = DISCIPLINE_DETAILS[key];
-        const IconComponent = ICONS[details.icon];
-        return React.createElement("button", {
-            key: key,
-            onClick: () => onSelectDiscipline(key),
-            className: "group flex flex-col items-center p-8 bg-white rounded-2xl shadow-lg border border-slate-200 hover:border-sky-500 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-sky-300"
-          },
-          React.createElement("div", { className: "mb-6 p-5 bg-sky-100 rounded-full group-hover:bg-sky-500 transition-colors duration-300" },
-            IconComponent && React.createElement(IconComponent, { className: "h-12 w-12 text-sky-500 group-hover:text-white transition-colors duration-300" })
-          ),
-          React.createElement("h2", { className: "text-2xl font-bold text-slate-800 mb-2" }, details.title),
-          React.createElement("p", { className: "text-slate-500 text-center" }, details.description)
-        );
-      })
-    ),
-    React.createElement("footer", { className: "mt-12 text-center text-sm text-slate-500" },
-      React.createElement("p", null, "Selecciona una categoría para recibir preguntas guiadas y generar un plan de proyecto completo.")
-    )
-  );
-};
-
-//======= components/ProjectForm.tsx =======//
-const ProjectForm = ({ onSubmitAnswers, questions, isLoading }) => {
-  const [answers, setAnswers] = useState({});
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (isLoading || !allQuestionsAnswered) return;
-    onSubmitAnswers(answers);
-  };
-  const totalQuestions = questions.reduce((acc, category) => acc + category.questions.length, 0);
-  const answeredQuestions = Object.values(answers).filter(a => typeof a === 'string' && a.trim() !== '').length;
-  const allQuestionsAnswered = totalQuestions === answeredQuestions;
-  const isButtonDisabled = isLoading || !allQuestionsAnswered;
-  const getButtonContent = () => {
-    if (isLoading) {
-      return React.createElement(React.Fragment, null,
-        React.createElement("svg", { className: "animate-spin -ml-1 mr-3 h-5 w-5 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
-          React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
-          React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
-        ), "Analizando...");
-    }
-    return 'Enviar Respuestas';
-  };
-  return React.createElement("form", { onSubmit: handleSubmit, className: "space-y-6 animate-fade-in mt-6" },
-    questions.map((category) => React.createElement("div", { key: category.title, className: "p-6 bg-white rounded-lg shadow-sm border border-slate-200" },
-      React.createElement("h3", { className: "text-xl font-semibold text-slate-800 mb-5 pb-3 border-b border-slate-200" }, category.title),
-      React.createElement("div", { className: "space-y-6" },
-        category.questions.map((q) => React.createElement("div", { key: q.id },
-          React.createElement("label", { htmlFor: q.id, className: "block text-base font-medium text-slate-700 mb-2" }, q.text),
-          React.createElement("textarea", {
-            id: q.id,
-            name: q.id,
-            value: answers[q.id] || '',
-            onChange: (e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value })),
-            rows: 3,
-            className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 transition",
-            placeholder: "Escribe la respuesta de tu equipo aquí...",
-            required: true,
-            disabled: isLoading
-          })
-        ))
-      )
-    )),
-    React.createElement("div", { className: "pt-4" },
-      React.createElement("button", {
-        type: "submit",
-        disabled: isButtonDisabled,
-        className: "w-full flex justify-center items-center gap-2 px-4 py-3 bg-sky-600 text-white font-semibold rounded-md shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
-      }, getButtonContent()),
-      !allQuestionsAnswered && React.createElement("p", { className: "text-center text-sm text-slate-500 mt-3" }, "Por favor, responde todas las preguntas para continuar.")
-    )
-  );
-};
-
-//======= components/GuideDisplay.tsx =======//
-const PrintIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("polyline", { points: "6 9 6 2 18 2 18 9" }), React.createElement("path", { d: "M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" }), React.createElement("rect", { x: "6", y: "14", width: "12", height: "8" }));
-const CheckIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "3", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M20 6 9 17l-5-5" }));
-const renderFormattedText = (text) => {
-    const lines = text.split('\n');
-    let isList = false;
-    const content = lines.map((line, index) => {
-      if (line.match(/^\s*\d\.\s*📝/)) return React.createElement("h2", { key: index, className: "text-2xl font-bold text-slate-800 mt-6 mb-4 pb-2 border-b-2 border-sky-200" }, line);
-      if (line.match(/^\s*\d\.\s*🎨/)) return null;
-      if (line.match(/^\s*\d\.\s*🛠️/)) return React.createElement("h2", { key: index, className: "text-2xl font-bold text-slate-800 mt-6 mb-4 pb-2 border-b-2 border-teal-200" }, line);
-      if (line.match(/^\s*\d\.\s*⏰/)) return React.createElement("h2", { key: index, className: "text-2xl font-bold text-slate-800 mt-6 mb-4 pb-2 border-b-2 border-amber-200" }, line);
-      if (line.match(/^\s*\d\.\s*🗺️/)) return React.createElement("h2", { key: index, className: "text-2xl font-bold text-slate-800 mt-6 mb-4 pb-2 border-b-2 border-indigo-200" }, line);
-      if (line.match(/^\s*Fase \d:/)) return React.createElement("h3", { key: index, className: "text-xl font-semibold text-sky-700 mt-6 mb-3" }, line);
-      if (line.match(/^\s*\*\s*\*\*(.*?)\*\*/)) {
-        const parts = line.replace(/^\s*\*/, '').trim().split('**');
-        return React.createElement("li", { key: index, className: "ml-5 list-disc list-outside mb-2 text-slate-700" }, React.createElement("span", { className: "font-semibold text-slate-800" }, parts[1]), parts.slice(2).join(''));
-      }
-      if (line.trim().endsWith(':')) {
-          isList = true;
-          return React.createElement("h4", { key: index, className: "font-semibold text-slate-700 mt-4 mb-2" }, line.replace('*','').trim());
-      }
-      if (line.match(/^\s*\* /) || (isList && line.trim() !== '')) {
-          if (line.trim() === '') {
-              isList = false;
-              return null;
-          }
-        return React.createElement("li", { key: index, className: "ml-8 list-disc text-slate-600" }, line.replace(/^\s*\*/, '').trim());
-      }
-      if (line.trim() === '') {
-        isList = false;
-        return React.createElement("div", { key: index, className: "h-4" });
-      }
-      return React.createElement("p", { key: index, className: "text-slate-700 mb-2 leading-relaxed" }, line);
-    });
-    return content;
-};
-const ConsultationChat = ({ message, onSendConsultation, inputValue, onInputChange, isConsulting }) => {
-  const chatHistoryRef = useRef(null);
-  useEffect(() => {
-    if (chatHistoryRef.current) {
-      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
-    }
-  }, [message.consultations]);
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSendConsultation(message.id, inputValue);
-  };
-  return React.createElement("div", { className: "mt-6 border-t border-slate-200 pt-4" },
-    React.createElement("h4", { className: "text-sm font-semibold text-slate-600 mb-3" }, "¿Tienes alguna pregunta sobre esta respuesta?"),
-    message.consultations && message.consultations.length > 0 && React.createElement("div", { ref: chatHistoryRef, className: "space-y-3 mb-4 max-h-48 overflow-y-auto pr-2" },
-      message.consultations.map((c, i) => React.createElement("div", { key: i, className: `text-sm ${c.sender === 'user' ? 'text-right' : 'text-left'}` },
-        React.createElement("div", { className: `inline-block p-2 rounded-lg ${c.sender === 'user' ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-700'}` }, c.text)
-      ))
-    ),
-    React.createElement("form", { onSubmit: handleSubmit, className: "flex items-center gap-2" },
-      React.createElement("input", {
-        type: "text",
-        value: inputValue,
-        onChange: (e) => onInputChange(e.target.value),
-        placeholder: "Haz una pregunta de seguimiento...",
-        className: "flex-grow px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 text-sm",
-        disabled: isConsulting
-      }),
-      React.createElement("button", { type: "submit", disabled: isConsulting || !inputValue.trim(), className: "px-4 py-2 bg-sky-600 text-white font-semibold rounded-md shadow-sm hover:bg-sky-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-sm" }, isConsulting ? '...' : 'Enviar')
-    )
-  );
-};
-const ChatMessage = ({ message, onPrint, onToggleAgreement, onSendConsultation, consultationInputs, onConsultationInputChange, isConsulting }) => {
-  const isAi = message.sender === 'ai';
-  const bubbleClasses = isAi ? 'bg-white border border-slate-200' : 'bg-sky-100/80 text-sky-900';
-  const icon = isAi ? React.createElement(BotIcon, { className: "h-8 w-8 text-slate-400 shrink-0" }) : React.createElement(UserIcon, { className: "h-8 w-8 text-sky-600 shrink-0" });
-  const renderMessageContent = (msg) => {
-    if (msg.type === 'guide') {
-      const title = msg.title || "Tu Guía de Proyecto Personalizada";
-      return React.createElement("div", { className: "prose prose-slate max-w-none" },
-        React.createElement("h1", { className: "text-3xl font-bold text-slate-900 mb-6 pb-3 border-b-2 border-slate-300" }, title),
-        msg.imageUrl && React.createElement("div", { className: "mb-6" },
-          React.createElement("h2", { className: "text-2xl font-bold text-slate-800 mt-6 mb-4 pb-2 border-b-2 border-purple-200" }, "🎨 Concepto Visual: ¿Cómo se verá?"),
-          React.createElement("img", { src: msg.imageUrl, alt: "Concepto visual del proyecto", className: "rounded-lg shadow-lg border border-slate-200 w-full" })
-        ),
-        renderFormattedText(msg.text),
-        React.createElement("div", { className: "mt-8 pt-4 border-t border-slate-200" },
-          React.createElement("button", { onClick: onPrint, className: "inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-semibold rounded-md shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors" },
-            React.createElement(PrintIcon, { className: "h-5 w-5" }), "Imprimir / Guardar como PDF")
-        )
-      );
-    }
-    const textLines = msg.text.split('\n').map((line, index) => {
-      if (line.trim() === '') return React.createElement("div", { key: index, className: "h-3" });
-      const parts = line.split(/(\*\*.*?\*\*)/g).map((part, i) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return React.createElement("strong", { key: i }, part.slice(2, -2));
-        }
-        return part;
-      });
-      if (line.trim().startsWith('* ')) {
-        return React.createElement("li", { key: index, className: "ml-5 list-disc" }, parts.map(p => typeof p === 'string' ? p.replace(/^\s*\*/, '').trim() : p));
-      }
-      return React.createElement("p", { key: index }, parts);
-    });
-    if (msg.type === 'feedback') {
-      return React.createElement(React.Fragment, null,
-        textLines,
-        React.createElement("div", { className: "mt-6 pt-4 border-t border-slate-200 flex items-center justify-end" },
-          React.createElement("button", {
-            onClick: () => onToggleAgreement(msg.id),
-            className: `flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-sm transition-all duration-200 ease-in-out transform hover:scale-105 ${msg.isAgreed ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`
-          },
-            msg.isAgreed ? React.createElement(React.Fragment, null, React.createElement(CheckIcon, { className: "h-4 w-4" }), " Acordado") : 'Estoy de acuerdo'
-          )
-        )
-      );
-    }
-    return textLines;
-  };
-  return React.createElement("div", { className: `flex items-start gap-4 animate-fade-in` },
-    icon,
-    React.createElement("div", { className: `w-full p-5 rounded-xl shadow-md ${bubbleClasses}` },
-      React.createElement("div", { className: "text-slate-800 leading-relaxed" }, renderMessageContent(message)),
-      isAi && (message.type === 'feedback' || message.type === 'guide') && React.createElement(ConsultationChat, {
-        message: message,
-        onSendConsultation: onSendConsultation,
-        inputValue: consultationInputs[message.id] || '',
-        onInputChange: (value) => onConsultationInputChange(message.id, value),
-        isConsulting: isConsulting === message.id
-      })
-    )
-  );
-};
-const GuideDisplay = ({ messages, isLoading, loadingMessage, error, imageGenerationWarning, ...props }) => {
-  return React.createElement("div", { className: "space-y-6" },
-    imageGenerationWarning && React.createElement("div", { className: "bg-amber-100 border-l-4 border-amber-500 text-amber-800 p-4 rounded-md shadow-sm animate-fade-in", role: "alert" },
-        React.createElement("p", { className: "font-bold" }, "Nota sobre la imagen"),
-        React.createElement("p", null, imageGenerationWarning)
-    ),
-    messages.map((msg) => React.createElement(ChatMessage, { key: msg.id, message: msg, ...props })),
-    isLoading && React.createElement("div", { className: "flex items-start gap-4 animate-fade-in" },
-      React.createElement(BotIcon, { className: "h-8 w-8 text-slate-400 shrink-0" }),
-      React.createElement("div", { className: "w-full p-4 rounded-xl shadow-sm bg-white border border-slate-200" },
-        React.createElement("div", { className: "flex items-center gap-3 text-slate-500" },
-          React.createElement("svg", { className: "animate-spin h-5 w-5", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
-            React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
-            React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
-          ),
-          React.createElement("span", null, loadingMessage)
-        )
-      )
-    ),
-    error && React.createElement("div", { className: "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg", role: "alert" },
-      React.createElement("strong", { className: "font-bold" }, "¡Oh no! "),
-      React.createElement("span", { className: "block sm:inline" }, error)
-    )
-  );
-};
-
-//======= App.tsx =======//
-const convertGuideToHtml = (message) => {
-    if (!message) return '';
-    const title = message.title || 'Guía de Proyecto Personalizada';
-    const lines = message.text.split('\n');
-    let textHtml = '';
-    const formatLine = (line) => {
-        if (line.match(/^\s*\d\.\s*📝/)) return `<h2>${line}</h2>`;
-        if (line.match(/^\s*\d\.\s*🎨/)) return '';
-        if (line.match(/^\s*\d\.\s*🛠️/)) return `<h2>${line}</h2>`;
-        if (line.match(/^\s*\d\.\s*⏰/)) return `<h2>${line}</h2>`;
-        if (line.match(/^\s*\d\.\s*🗺️/)) return `<h2>${line}</h2>`;
-        if (line.match(/^\s*Fase \d:/)) return `<h3>${line}</h3>`;
-        if (line.match(/^\s*\*\s*\*\*(.*?)\*\*/)) {
-            const parts = line.replace(/^\s*\*/, '').trim().split('**');
-            return `<li><strong>${parts[1]}</strong>${parts.slice(2).join('')}</li>`;
-        }
-        if (line.trim().endsWith(':')) return `<h4>${line.replace('*','').trim()}</h4>`;
-        if (line.match(/^\s*\* /)) return `<li>${line.replace(/^\s*\*/, '').trim()}</li>`;
-        if (line.trim() === '') return '<br>';
-        return `<p>${line}</p>`;
-    };
-    let isList = false;
-    for (const line of lines) {
-        const trimmedLine = line.trim();
-        const isListItem = trimmedLine.startsWith('*');
-        if (isList && !isListItem && trimmedLine !== '') {
-            textHtml += '</ul>';
-            isList = false;
-        }
-        if (!isList && isListItem) {
-            textHtml += '<ul>';
-            isList = true;
-        }
-        textHtml += formatLine(line);
-    }
-    if (isList) textHtml += '</ul>';
-    let html = `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <title>${title}</title>
-            <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 20px auto; padding: 0 20px; }
-                h1 { font-size: 28px; color: #1e293b; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 20px; }
-                h2 { font-size: 22px; color: #0c4a6e; margin-top: 30px; border-bottom: 1px solid #bae6fd; padding-bottom: 8px;}
-                h3 { font-size: 18px; color: #0369a1; margin-top: 25px; }
-                h4 { font-size: 16px; font-weight: bold; color: #1e293b; margin-top: 20px; margin-bottom: 5px; }
-                img { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; margin: 20px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); page-break-inside: avoid; }
-                ul { padding-left: 20px; list-style-type: disc; margin-bottom: 15px; }
-                li { margin-bottom: 8px; }
-                p { margin-bottom: 12px; }
-                strong { color: #1e293b; }
-                @media print {
-                  body { margin: 0; box-shadow: none; border: none; }
-                  h1, h2, h3 { page-break-after: avoid; }
-                }
-            </style>
-        </head>
-        <body>
-            <h1>${title}</h1>
-    `;
-    if (message.imageUrl) {
-        html += `
-            <h2>🎨 Concepto Visual: ¿Cómo se verá?</h2>
-            <img src="${message.imageUrl}" alt="Concepto visual del proyecto" />
-        `;
-    }
-    html += textHtml;
-    html += `
-        </body>
-        </html>
-    `;
-    return html;
-};
-const App = () => {
-  const [isApiKeyNeeded, setIsApiKeyNeeded] = useState(false);
-  const [discipline, setDiscipline] = useState(null);
-  const [answers, setAnswers] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [error, setError] = useState(null);
-  const [consultationInputs, setConsultationInputs] = useState({});
-  const [isConsulting, setIsConsulting] = useState(null);
-  const [imageGenerationWarning, setImageGenerationWarning] = useState(null);
-  const messagesEndRef = useRef(null);
-  useEffect(() => {
-    const validateStoredKey = async () => {
-        setIsLoading(true);
-        const storedKey = localStorage.getItem('GEMINI_API_KEY');
-        if (storedKey) {
-            const verificationError = await verifyApiKey(storedKey);
-            if (verificationError) {
-                setError("Tu clave de API guardada no es válida o ha excedido la cuota. Por favor, introduce una nueva.");
-                localStorage.removeItem('GEMINI_API_KEY');
-                setIsApiKeyNeeded(true);
-            } else {
-                initializeAi(storedKey);
-                setIsApiKeyNeeded(false);
-            }
-        } else {
-            setIsApiKeyNeeded(true);
-        }
-        setIsLoading(false);
-    };
-    validateStoredKey();
-  }, []);
-  const handleSaveApiKey = async (key) => {
-    setIsLoading(true);
-    setError(null);
-    const verificationError = await verifyApiKey(key);
-    if (verificationError) {
-        setError(verificationError);
-        setIsLoading(false);
-    } else {
-        initializeAi(key);
-        localStorage.setItem('GEMINI_API_KEY', key);
-        setIsApiKeyNeeded(false);
-        setIsLoading(false);
-    }
-  };
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  useEffect(() => {
-    if (messages.length > 0) {
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.type !== 'answer' && !lastMessage.isAgreed) {
-            scrollToBottom();
-        }
-    }
-  }, [messages.length]);
-  const handleSelectDiscipline = (selectedDiscipline) => {
-    setDiscipline(selectedDiscipline);
-  };
-  const handleSubmitAnswers = useCallback(async (submittedAnswers) => {
-    setIsLoading(true);
-    setError(null);
-    setImageGenerationWarning(null);
-    setAnswers(submittedAnswers);
-    const userMessage = {
-      id: `user-${Date.now()}`,
-      sender: 'user',
-      text: "Estas son mis respuestas. ¡Espero tus comentarios!",
-      type: 'answer',
-    };
-    setMessages([userMessage]);
-    try {
-      setLoadingMessage('Analizando las respuestas...');
-      const studentAnswersString = JSON.stringify(submittedAnswers, null, 2);
-      const feedbackCards = await getDesignFeedback(studentAnswersString, discipline);
-      if (feedbackCards.length === 0) {
-        setLoadingMessage('¡Excelente plan! Generando la guía del proyecto...');
-        await generateGuide(studentAnswersString);
-      } else {
-        const feedbackMessages = feedbackCards.map((card, index) => ({
-          id: `feedback-${Date.now()}-${index}`,
-          sender: 'ai',
-          text: `**${card.title}**\n${card.content}`,
-          type: 'feedback',
-          isAgreed: false,
-        }));
-        setMessages(prev => [...prev, ...feedbackMessages]);
-      }
-    } catch (e) {
-      setError(e.message || 'Ocurrió un error desconocido.');
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
-    }
-  }, [discipline]);
-  const generateGuide = async (studentAnswersString) => {
-      setIsLoading(true);
-      setError(null);
-      setImageGenerationWarning(null);
-      setLoadingMessage('Generando una imagen conceptual del proyecto...');
-      try {
-        const imageUrl = await generateProjectImage(studentAnswersString, discipline);
-        if (imageUrl === null) {
-            setImageGenerationWarning("No se pudo generar la imagen porque la API de Imagen requiere una cuenta con facturación habilitada. ¡Pero no te preocupes, aquí está tu guía de texto!");
-        }
+const getChatResponse = async (apiKey, field, chatHistory, userInput, initialAnswers) => {
+    const ai = new GoogleGenAI({ apiKey });
+    const context = Object.entries(initialAnswers).map(([key, value]) => `${questions[initialAnswers.discipline].find(q => q.id === key)?.label}: ${value}`).join('\n');
+    const history = chatHistory.map(msg => `${msg.author}: ${msg.text}`).join('\n');
+    const prompt = `
+        Estás en medio de una conversación para definir los detalles de un proyecto educativo.
+        Contexto general del proyecto:\n${context}\n
+        Tema de esta conversación: ${field.label}.
+        Historial de la conversación hasta ahora:\n${history}\n
+        Nuevo mensaje del usuario: "${userInput}"
         
-        setLoadingMessage('Creando la guía paso a paso...');
-        const conversationHistory = messages
-          .filter(m => m.type === 'feedback' || m.type === 'answer' || m.consultations)
-          .map(m => {
-            let turn = `${m.sender === 'user' ? 'Estudiante' : 'Mentor'}: ${m.text}\n`;
-            if (m.consultations) {
-              turn += m.consultations.map(c => `  ${c.sender === 'user' ? 'Estudiante (pregunta)' : 'Mentor (respuesta)'}: ${c.text}`).join('\n');
-            }
-            return turn;
-          })
-          .join('\n');
-        const guideText = await generateCustomGuide(studentAnswersString, conversationHistory, discipline);
-        const guideMessage = {
-          id: `guide-${Date.now()}`,
-          sender: 'ai',
-          text: guideText,
-          type: 'guide',
-          imageUrl: imageUrl, // Will be null if generation was skipped
-          title: answers?.name || "Guía de Proyecto Personalizada",
-        };
-        setMessages(prev => [...prev, guideMessage]);
-      } catch (e) {
-        setError(e.message || 'Ocurrió un error desconocido.');
-      } finally {
-        setIsLoading(false);
-        setLoadingMessage('');
-      }
-  };
-  const handleToggleAgreement = useCallback((messageId) => {
-    setMessages(prevMessages => {
-      const updatedMessages = prevMessages.map(msg =>
-        msg.id === messageId ? { ...msg, isAgreed: true } : msg
-      );
-      const feedbackMessages = updatedMessages.filter(msg => msg.type === 'feedback');
-      const allAgreed = feedbackMessages.length > 0 && feedbackMessages.every(msg => msg.isAgreed);
-      if (allAgreed && answers) {
-        const studentAnswersString = JSON.stringify(answers, null, 2);
-        setTimeout(() => generateGuide(studentAnswersString), 0);
-      }
-      return updatedMessages;
+        Responde al mensaje del usuario de forma concisa y útil, ayudándole a refinar su idea. Actualiza la sugerencia si es necesario.
+        Responde en formato JSON con la clave "response".
+    `;
+    const result = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
     });
-  }, [answers, discipline]);
-  const handleSendConsultation = async (messageId, question) => {
-    if (!question.trim()) return;
-    setIsConsulting(messageId);
-    setMessages(prev => prev.map(msg => {
-      if (msg.id === messageId) {
-        const newConsultation = { sender: 'user', text: question };
-        return { ...msg, consultations: [...(msg.consultations || []), newConsultation] };
-      }
-      return msg;
-    }));
-    setConsultationInputs(prev => ({...prev, [messageId]: ''}));
-    try {
-      const originalMessage = messages.find(m => m.id === messageId);
-      if (originalMessage) {
-        const responseText = await getConsultationResponse(originalMessage.text, question, discipline);
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === messageId) {
-            const newConsultation = { sender: 'ai', text: responseText };
-            return { ...msg, consultations: [...(msg.consultations || []), newConsultation] };
-          }
-          return msg;
-        }));
-      }
-    } catch (e) {
-      console.error("Consultation error:", e);
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === messageId) {
-          const newConsultation = { sender: 'ai', text: `Lo siento, tuve un error: ${e.message}` };
-          return { ...msg, consultations: [...(msg.consultations || []), newConsultation] };
-        }
-        return msg;
-      }));
-    } finally {
-      setIsConsulting(null);
-    }
-  };
-  const handlePrintGuide = () => {
-    const guideMessage = messages.find(m => m.type === 'guide');
-    if (guideMessage) {
-        const htmlContent = convertGuideToHtml(guideMessage);
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(htmlContent);
-            printWindow.document.close();
-            printWindow.print();
-        } else {
-            setError("No se pudo abrir la ventana de impresión. Revisa si tu navegador bloquea las ventanas emergentes.");
-        }
-    }
-  };
-  const renderContent = () => {
-    if (isLoading && !discipline) { // Show loader only on initial load
-      return React.createElement("div", { className: "flex justify-center items-center h-screen" },
-        React.createElement("svg", { className: "animate-spin h-8 w-8 text-sky-600", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
-          React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
-          React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
-        )
-      );
-    }
-    if (isApiKeyNeeded) {
-        return React.createElement(ApiKeySetup, { onSave: handleSaveApiKey, error: error, isLoading: isLoading });
-    }
-    if (!discipline) {
-      return React.createElement(DisciplineSelector, { onSelectDiscipline: handleSelectDiscipline });
-    }
-    if (!answers) {
-      return React.createElement(ProjectForm, {
-        onSubmitAnswers: handleSubmitAnswers,
-        questions: DISCIPLINE_QUESTIONS[discipline],
-        isLoading: isLoading
-      });
-    }
-    return React.createElement(React.Fragment, null,
-      React.createElement(GuideDisplay, {
-        messages: messages,
-        isLoading: isLoading,
-        loadingMessage: loadingMessage,
-        error: error,
-        imageGenerationWarning: imageGenerationWarning,
-        onPrint: handlePrintGuide,
-        onToggleAgreement: handleToggleAgreement,
-        onSendConsultation: handleSendConsultation,
-        consultationInputs: consultationInputs,
-        onConsultationInputChange: (id, val) => setConsultationInputs(prev => ({...prev, [id]: val})),
-        isConsulting: isConsulting
-      }),
-      React.createElement("div", { ref: messagesEndRef })
-    );
-  };
-  const MainWrapper = ({ children }) => {
-    if (isApiKeyNeeded || !discipline) {
-      return React.createElement(React.Fragment, null, children);
-    }
-    return React.createElement("div", { className: "max-w-4xl mx-auto px-4 py-8 md:py-12" },
-      React.createElement("header", { className: "text-center mb-8" },
-        React.createElement("div", { className: "flex justify-center items-center gap-4 mb-4" },
-          React.createElement(BookOpenIcon, { className: "h-10 w-10 text-sky-600" }),
-          React.createElement("h1", { className: "text-4xl font-bold text-slate-900" }, DISCIPLINE_DETAILS[discipline].title)
-        ),
-        React.createElement("p", { className: "text-lg text-slate-600" }, "Responde a las siguientes preguntas para que el mentor de IA pueda ayudarte a crear una guía de proyecto.")
-      ),
-      React.createElement("main", null, children)
-    );
-  };
-  return React.createElement(MainWrapper, null, renderContent());
+    return JSON.parse(result.text).response;
 };
 
-//======= index.tsx =======//
-try {
-  const rootElement = document.getElementById('root');
-  if (!rootElement) {
-    throw new Error("No se pudo encontrar el elemento 'root' para montar la aplicación.");
-  }
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(React.createElement(React.StrictMode, null, React.createElement(App, null)));
-} catch (error) {
-  console.error("Error crítico al cargar la aplicación:", error);
-  const rootElement = document.getElementById('root');
-  if (rootElement) {
-    rootElement.innerHTML = `
-      <div style="padding: 2rem; font-family: sans-serif; background-color: #fee2e2; border-left: 5px solid #ef4444; color: #b91c1c; margin: 2rem;">
-        <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem;">Error Crítico al Cargar la Aplicación</h2>
-        <p style="margin-bottom: 1rem;">Hubo un problema grave que impidió que la aplicación se iniciara. Esto suele deberse a un error de configuración o a un problema al cargar los módulos de la aplicación.</p>
-        <p style="margin-bottom: 0.5rem;"><strong>Mensaje de Error:</strong></p>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #fff; padding: 1rem; border-radius: 4px; border: 1px solid #fca5a5; font-family: monospace;">${error.stack || error.message}</pre>
-        <p style="margin-top: 1.5rem;">Por favor, revisa la configuración mencionada en el error o abre la consola del desarrollador (presiona F12) para más detalles técnicos.</p>
-      </div>
+const generateFinalGuide = async (apiKey, finalAnswers) => {
+    const ai = new GoogleGenAI({ apiKey });
+    const promptInfo = Object.entries(finalAnswers)
+      .filter(([key]) => key !== 'discipline')
+      .map(([key, value]) => `${questions[finalAnswers.discipline].find(q => q.id === key)?.label}: ${value.finalValue}`)
+      .join('\n- ');
+
+    const prompt = `
+    Eres un asistente experto en educación técnica. Tu tarea es generar una guía de proyecto detallada, paso a paso, para estudiantes, basada en los siguientes parámetros que fueron co-creados y acordados con un profesor.
+
+    Parámetros Finales del Proyecto:
+    - ${promptInfo}
+
+    Genera una guía con las siguientes secciones en formato JSON.
+    El contenido debe ser apropiado para el nivel del estudiante especificado, PERO sigue estas reglas CRÍTICAS:
+
+    1.  **Detalle Extremo en los Pasos:** Para cada paso en la sección "steps", la descripción y las tareas deben ser EXTREMADAMENTE detalladas. Asume que el estudiante no tiene conocimientos previos y explícalo todo "como si no supiera cómo hacerlo". Desglosa cada acción en sus componentes más pequeños.
+    2.  **Formato de Título de Paso:** En la sección "steps", el campo "title" solo debe contener el título del paso (ej: "Preparar la Madera"), NO debe incluir "Paso X:". La numeración se añadirá automáticamente en la interfaz.
+
+    Aquí está el esquema JSON que debes seguir:
+    {
+      "title": "Nombre del Proyecto",
+      "introduction": "Un párrafo inspirador que introduce el proyecto, su relevancia y lo que los estudiantes aprenderán.",
+      "learningObjectives": ["Lista de 3-5 habilidades o conceptos clave que los estudiantes adquirirán."],
+      "materialsAndTools": ["Lista detallada de todos los materiales, componentes y herramientas necesarias."],
+      "safetyFirst": ["Lista de 3-4 reglas de seguridad cruciales y específicas para este proyecto."],
+      "steps": [
+        {
+          "title": "Título del Paso (ej: Preparar la Madera)",
+          "description": "Explicación EXTREMADAMENTE detallada de lo que hay que hacer en este paso, como si el estudiante no supiera nada.",
+          "tasks": ["Sub-tarea granular 1", "Sub-tarea granular 2", "Sub-tarea granular 3"]
+        }
+      ],
+      "evaluationCriteria": ["Lista de 3-4 puntos sobre cómo se evaluará el proyecto final."],
+      "nextSteps": ["Sugerencia de 2-3 ideas para expandir el proyecto o explorar conceptos más avanzados."]
+    }
     `;
-  }
-}
+    const result = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: "application/json" } });
+    return JSON.parse(result.text);
+};
+
+
+const generateImagePrompt = async (apiKey, guideTitle) => {
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `
+        Basado en el título de proyecto para estudiantes "${guideTitle}", genera un prompt de texto a imagen detallado y profesional en español.
+        El objetivo es crear un diagrama de ensamblaje en vista explosionada, sin texto, claro y estilo manual de instalación, para que un profesor pueda copiar y pegar este prompt en una herramienta de IA de imagen como Google AI Studio con el modelo 'gemini-2.5-flash-image'.
+        
+        Consideraciones CRÍTICAS para el prompt que generes:
+        1.  **Proporción del Objeto:** Analiza el objeto en "${guideTitle}". Si es un objeto inherentemente rectangular (como una cama, una estantería), el prompt DEBE incluir términos que sugieran una proporción apaisada o rectangular (ej: "en un encuadre panorámico", "vista rectangular detallada"). Si es cuadrado o vertical, ajústalo de la misma manera. La forma de la imagen debe coincidir con la forma del objeto.
+        2.  **Detalle Técnico:** El prompt debe ser muy descriptivo y técnico, enfocándose en los componentes visuales.
+    `;
+    const result = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return result.text.trim();
+};
+
+
+// --- UI COMPONENTS ---
+
+const ApiKeySetup = ({ onApiKeySubmit }) => {
+    const [apiKey, setApiKey] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [showHelp, setShowHelp] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+        const isValid = await validateApiKey(apiKey);
+        setIsLoading(false);
+        if (isValid) {
+            onApiKeySubmit(apiKey);
+        } else {
+            setError('¡Oh no! La clave de API parece ser inválida o la cuota ha sido excedida. Por favor, verifica que sea correcta y que esté habilitada.');
+        }
+    };
+
+    const HelpModal = () => e('div', { className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in" },
+        e('div', { className: "bg-white rounded-lg shadow-2xl p-6 md:p-8 max-w-2xl w-full" },
+            e('h3', { className: "text-2xl font-bold text-slate-800 mb-4" }, "Cómo Obtener tu Clave de API de Gemini"),
+            e('div', { className: "space-y-4 text-slate-600" },
+                e('p', null, "Para usar esta aplicación, necesitas una clave de API de Google Gemini. ¡Es gratis y fácil de obtener!"),
+                e('ol', { className: "list-decimal list-inside space-y-2" },
+                    e('li', null, e('strong', null, "Visita Google AI Studio:"), " Abre tu navegador y ve a la página oficial."),
+                    e('li', null, e('strong', null, "Inicia Sesión:"), " Usa tu cuenta de Google para iniciar sesión."),
+                    e('li', null, e('strong', null, "Crea una Clave de API:"), " Busca y haz clic en el botón ", e('strong', null, "'Get API key'"), " (Obtener clave de API)."),
+                    e('li', null, e('strong', null, "Copia tu Clave:"), " Se generará una nueva clave. Cópiala y pégala en el campo de esta página.")
+                ),
+            ),
+            e('div', { className: "mt-6 flex flex-col sm:flex-row gap-3" },
+                 e('a', { href: "https://aistudio.google.com/app/apikey", target: "_blank", rel: "noopener noreferrer", className: "w-full sm:w-auto text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors" }, "Ir a Google AI Studio"),
+                 e('button', { onClick: () => setShowHelp(false), className: "w-full sm:w-auto bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded-md transition-colors" }, "Cerrar")
+            )
+        )
+    );
+
+    return e('div', { className: "min-h-screen flex items-center justify-center bg-slate-100 p-4" },
+        e('div', { className: "max-w-md w-full bg-white p-8 rounded-xl shadow-lg animate-fade-in" },
+            e('div', { className: 'text-center mb-6' },
+                e(SparklesIcon, { className: 'w-12 h-12 text-blue-600 mx-auto mb-2' }),
+                e('h1', { className: "text-2xl font-bold text-slate-800" }, "Configuración Inicial"),
+                e('p', { className: "text-slate-500 mt-1" }, "Ingresa tu clave de API de Gemini para comenzar.")
+            ),
+            e('form', { onSubmit: handleSubmit },
+                e('div', { className: "mb-4" },
+                    e('input', {
+                        id: "apiKey",
+                        type: "password",
+                        value: apiKey,
+                        onChange: (e) => setApiKey(e.target.value),
+                        className: "w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                        placeholder: "Pega tu clave de API de Google Gemini aquí",
+                        required: true,
+                    })
+                ),
+                error && e('p', { className: "text-sm text-red-600 mb-4" }, error),
+                e('button', {
+                    type: "submit",
+                    disabled: isLoading,
+                    className: "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center"
+                }, isLoading ? 'Verificando...' : 'Guardar y Continuar'),
+                e('div', { className: 'text-center mt-4' },
+                    e('button', { type: 'button', onClick: () => setShowHelp(true), className: 'text-sm text-blue-600 hover:underline' }, '¿Necesitas ayuda para obtener una clave?')
+                )
+            )
+        ),
+        showHelp && e(HelpModal)
+    );
+};
+
+const DisciplineSelector = ({ onSelect }) => {
+    const disciplines = [
+        { id: 'tecnologia', name: 'Tecnología', icon: SparklesIcon },
+        { id: 'carpinteria', name: 'Carpintería', icon: SawIcon },
+        { id: 'mecanica', name: 'Mecánica', icon: GearsIcon },
+    ];
+
+    return e('div', { className: "min-h-screen flex items-center justify-center bg-slate-100 p-4" },
+        e('div', { className: "max-w-2xl w-full text-center animate-fade-in" },
+            e(SparklesIcon, { className: 'w-16 h-16 text-blue-600 mx-auto mb-4' }),
+            e('h1', { className: "text-3xl font-bold text-slate-800 mb-2" }, "Generador de Guías de Proyectos"),
+            e('p', { className: "text-slate-500 mb-8" }, "Selecciona una disciplina para co-crear tu guía con IA."),
+            e('div', { className: "grid grid-cols-1 sm:grid-cols-3 gap-6" },
+                disciplines.map(disc => e('button', {
+                    key: disc.id,
+                    onClick: () => onSelect(disc.id),
+                    className: "group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 ease-in-out border border-slate-200"
+                },
+                    e(disc.icon, { className: "w-16 h-16 text-blue-500 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" }),
+                    e('h2', { className: "text-xl font-semibold text-slate-700" }, disc.name)
+                ))
+            )
+        )
+    );
+};
+
+const ProjectForm = ({ questions, discipline, onSubmit }) => {
+    const [answers, setAnswers] = useState(() => {
+        const initial = { discipline };
+        questions.forEach(q => initial[q.id] = '');
+        return initial;
+    });
+
+    const handleChange = (id, value) => {
+        setAnswers(prev => ({ ...prev, [id]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSubmit(answers);
+    };
+
+    return e('div', { className: "min-h-screen flex items-center justify-center bg-slate-100 p-4" },
+        e('div', { className: "max-w-2xl w-full bg-white p-8 rounded-xl shadow-lg animate-fade-in" },
+            e('h1', { className: "text-2xl font-bold text-slate-800 mb-2" }, `Nuevo Proyecto de ${discipline.charAt(0).toUpperCase() + discipline.slice(1)}`),
+            e('p', { className: "text-slate-500 mb-6" }, "Completa los campos con tus ideas iniciales. La IA te ayudará a refinarlas."),
+            e('form', { onSubmit: handleSubmit, className: "space-y-4" },
+                questions.map(q => e('div', { key: q.id },
+                    e('label', { htmlFor: q.id, className: "block text-sm font-medium text-slate-700" }, q.label),
+                    q.type === 'select' ?
+                        e('select', {
+                            id: q.id,
+                            value: answers[q.id],
+                            onChange: (e) => handleChange(q.id, e.target.value),
+                            className: "mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md",
+                            required: true,
+                        }, e('option', { value: "", disabled: true }, "Selecciona una opción"), q.options.map(opt => e('option', { key: opt, value: opt }, opt)))
+                        : q.type === 'textarea' ?
+                        e('textarea', { id: q.id, value: answers[q.id], onChange: (e) => handleChange(q.id, e.target.value), placeholder: q.placeholder, className: "mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm", rows: 3 })
+                        : e('input', { id: q.id, type: q.type || 'text', value: answers[q.id], onChange: (e) => handleChange(q.id, e.target.value), placeholder: q.placeholder, className: "mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm", required: true, })
+                )),
+                e('button', { type: 'submit', className: "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors flex items-center justify-center mt-6" },
+                    e(SparklesIcon, { className: "w-5 h-5 mr-2" }),
+                    "Iniciar Co-Creación con IA"
+                )
+            )
+        )
+    );
+};
+
+const SuggestionCard = ({ item, onUpdate, onApprove, apiKey, initialAnswers }) => {
+    const [userInput, setUserInput] = useState('');
+    const [isChatting, setIsChatting] = useState(false);
+
+    const handleChatSubmit = async (e) => {
+        e.preventDefault();
+        if (!userInput.trim()) return;
+
+        const updatedHistory = [...item.chatHistory, { author: 'user', text: userInput }];
+        onUpdate(item.field.id, { chatHistory: updatedHistory });
+        setUserInput('');
+        setIsChatting(true);
+
+        const aiResponse = await getChatResponse(apiKey, item.field, updatedHistory, userInput, initialAnswers);
+        
+        onUpdate(item.field.id, {
+            suggestion: aiResponse,
+            chatHistory: [...updatedHistory, { author: 'ai', text: aiResponse }]
+        });
+        setIsChatting(false);
+    };
+
+    const ChatMessage = ({ msg }) => e('div', { className: `flex items-start gap-2.5 ${msg.author === 'user' ? 'justify-end' : ''}` },
+        msg.author === 'ai' && e(BotIcon, { className: "w-6 h-6 text-slate-400 flex-shrink-0" }),
+        e('div', { className: `p-3 rounded-lg ${msg.author === 'ai' ? 'bg-slate-100 text-slate-700' : 'bg-blue-100 text-blue-800'}` },
+            e('p', { className: "text-sm" }, msg.text)
+        ),
+        msg.author === 'user' && e(UserIcon, { className: "w-6 h-6 text-slate-400 flex-shrink-0" }),
+    );
+
+    return e('div', { className: `bg-white p-5 rounded-xl shadow-md border-l-4 ${item.status === 'approved' ? 'border-green-500' : 'border-blue-500'} transition-all`},
+        e('h3', { className: "text-lg font-semibold text-slate-800 mb-1" }, item.field.label),
+        e('p', { className: "text-sm text-slate-500 mb-3" }, e('strong', null, 'Tu idea inicial: '), `"${item.initialValue}"`),
+
+        item.status !== 'approved' ? e(React.Fragment, null,
+            e('div', { className: "bg-blue-50 p-4 rounded-lg border border-blue-200" },
+                e('p', { className: "text-sm font-semibold text-blue-800 mb-1" }, "Sugerencia de la IA:"),
+                e('p', { className: "text-sm text-blue-700 mb-2" }, item.suggestion),
+                e('p', { className: "text-xs text-blue-600" }, e('em', null, item.explanation))
+            ),
+
+            e('div', { className: 'mt-4 space-y-3' },
+                item.chatHistory.map((msg, i) => e(ChatMessage, { key: i, msg }))
+            ),
+            
+            isChatting && e('div', { className: 'flex items-center gap-2 mt-3'}, e(BotIcon, {className: 'w-6 h-6 text-slate-400 animate-pulse'}), e('p', {className: 'text-sm text-slate-500'}, 'IA está pensando...')),
+
+            e('form', { onSubmit: handleChatSubmit, className: "mt-4 flex gap-2" },
+                e('input', {
+                    type: "text",
+                    value: userInput,
+                    onChange: (e) => setUserInput(e.target.value),
+                    placeholder: "Haz una pregunta o refina la idea...",
+                    className: "flex-grow px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                }),
+                e('button', { type: "submit", className: "bg-slate-600 text-white px-4 py-2 text-sm font-semibold rounded-md hover:bg-slate-700" }, "Enviar")
+            ),
+             e('button', { onClick: () => onApprove(item.field.id), className: "mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-md transition-colors text-sm" }, "Aprobar esta sección")
+
+        ) : e('div', { className: "bg-green-50 p-4 rounded-lg border border-green-200" },
+             e('p', { className: "text-sm font-semibold text-green-800 mb-1" }, "Aprobado:"),
+             e('p', { className: "text-sm text-green-700" }, item.finalValue)
+        )
+    );
+};
+
+const InteractiveGuideBuilder = ({ initialAnswers, apiKey, onFinalize }) => {
+    const [items, setItems] = useState(null);
+    const [isFinalizing, setIsFinalizing] = useState(false);
+
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            const questionList = questions[initialAnswers.discipline];
+            const suggestions = await Promise.all(
+                questionList.map(async (q) => {
+                    const data = await getInitialSuggestion(apiKey, q, initialAnswers);
+                    return {
+                        field: q,
+                        initialValue: initialAnswers[q.id],
+                        suggestion: data.suggestion,
+                        explanation: data.explanation,
+                        chatHistory: [],
+                        status: 'pending',
+                        finalValue: null,
+                    };
+                })
+            );
+            const itemsObject = suggestions.reduce((acc, curr) => {
+                acc[curr.field.id] = curr;
+                return acc;
+            }, {});
+            setItems(itemsObject);
+        };
+        fetchSuggestions();
+    }, [initialAnswers, apiKey]);
+
+    const handleUpdate = useCallback((id, updates) => {
+        setItems(prev => ({ ...prev, [id]: { ...prev[id], ...updates } }));
+    }, []);
+    
+    const handleApprove = useCallback((id) => {
+        setItems(prev => ({
+            ...prev,
+            [id]: {
+                ...prev[id],
+                status: 'approved',
+                finalValue: prev[id].suggestion 
+            }
+        }));
+    }, []);
+    
+    const handleFinalize = async () => {
+        setIsFinalizing(true);
+        const finalAnswers = { discipline: initialAnswers.discipline, ...items };
+        const guideData = await generateFinalGuide(apiKey, finalAnswers);
+        const imagePrompt = await generateImagePrompt(apiKey, guideData.title);
+        onFinalize({ ...guideData, imagePrompt });
+        setIsFinalizing(false);
+    };
+
+    if (!items) {
+        return e('div', { className: "min-h-screen flex flex-col items-center justify-center bg-slate-100 p-4 text-center" },
+            e(SparklesIcon, { className: 'w-16 h-16 text-blue-600 mx-auto mb-4 animate-pulse' }),
+            e('h1', { className: "text-2xl font-bold text-slate-800" }, "Analizando tus ideas..."),
+            e('p', { className: "text-slate-500 mt-2" }, "La IA está preparando sugerencias para cada punto.")
+        );
+    }
+    
+    const allApproved = Object.values(items).every(item => item.status === 'approved');
+
+    return e('div', { className: "max-w-3xl mx-auto p-4 sm:p-8" },
+        e('div', { className: 'text-center mb-8 animate-fade-in' },
+            e('h1', { className: 'text-3xl font-bold text-slate-800' }, 'Co-Creación de la Guía'),
+            e('p', { className: 'text-slate-500 mt-2' }, 'Discute, refina y aprueba cada sección de tu proyecto con la ayuda de la IA.')
+        ),
+        e('div', { className: 'space-y-6 animate-fade-in' },
+            Object.values(items).map(item => e(SuggestionCard, { key: item.field.id, item, onUpdate: handleUpdate, onApprove: handleApprove, apiKey, initialAnswers }))
+        ),
+        e('div', { className: 'mt-8 text-center'},
+            e('button', { 
+                onClick: handleFinalize, 
+                disabled: !allApproved || isFinalizing,
+                className: "bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md transition-all duration-300 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:scale-100 transform hover:scale-105"
+            }, isFinalizing ? 'Generando Guía Final...' : 'Generar Guía Final'),
+            !allApproved && e('p', {className: 'text-sm text-slate-500 mt-2'}, 'Debes aprobar todas las secciones para poder generar la guía.')
+        )
+    );
+};
+
+const GuideDisplay = ({ guide, onReset }) => {
+    const copyPrompt = () => {
+        navigator.clipboard.writeText(guide.imagePrompt);
+        const button = document.getElementById('copy-prompt-btn');
+        if (button) {
+            const originalText = button.innerText;
+            button.innerText = '¡Copiado!';
+            setTimeout(() => { button.innerText = originalText; }, 2000);
+        }
+    };
+
+    const PromptCard = ({ prompt }) => e('div', { className: 'bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-lg my-6' },
+        e('div', { className: 'flex' },
+            e('div', { className: 'py-1' }, e(SparklesIcon, { className: 'h-6 w-6 text-indigo-500 mr-4' })),
+            e('div', {},
+                e('h3', { className: 'font-bold text-indigo-800' }, 'Prompt para Generador de Imágenes'),
+                e('p', { className: 'text-sm text-indigo-700 mb-2' }, "Usa el siguiente prompt en una herramienta como Google AI Studio (con el modelo gemini-2.5-flash-image) para crear el concepto visual."),
+                e('div', { className: 'mt-3 bg-slate-100 p-3 rounded-md' },
+                    e('p', { className: 'text-sm font-mono text-slate-700' }, prompt)
+                ),
+                e('div', { className: 'mt-3 flex flex-wrap gap-2 no-print' },
+                    e('button', { id: 'copy-prompt-btn', onClick: copyPrompt, className: 'bg-slate-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-slate-800' }, 'Copiar Prompt'),
+                    e('a', { href: 'https://aistudio.google.com/', target: '_blank', rel: 'noopener noreferrer', className: 'bg-blue-600 text-white px-3 py-1.5 text-sm rounded-md hover:bg-blue-700' }, 'Abrir Google AI Studio')
+                )
+            )
+        )
+    );
+    
+    return e('div', { className: "max-w-4xl mx-auto p-4 sm:p-8 animate-fade-in" },
+        e('div', { id: 'printable-guide', className: 'bg-white shadow-lg rounded-xl p-6 sm:p-10' },
+            e('h1', { className: "text-3xl sm:text-4xl font-bold text-slate-800 mb-2" }, guide.title),
+            e('p', { className: "text-slate-600 mb-6" }, guide.introduction),
+
+            e(PromptCard, { prompt: guide.imagePrompt }),
+
+            e('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-8 mb-8" },
+                e('div', {}, e('h2', { className: "text-xl font-semibold text-slate-700 border-b-2 border-blue-500 pb-2 mb-3" }, "🎯 Objetivos de Aprendizaje"), e('ul', { className: "list-disc list-inside space-y-1 text-slate-600" }, guide.learningObjectives.map((obj, i) => e('li', { key: i }, obj)))),
+                e('div', {}, e('h2', { className: "text-xl font-semibold text-slate-700 border-b-2 border-blue-500 pb-2 mb-3" }, "🛠️ Materiales y Herramientas"), e('ul', { className: "list-disc list-inside space-y-1 text-slate-600" }, guide.materialsAndTools.map((item, i) => e('li', { key: i }, item))))
+            ),
+
+            e('div', { className: "bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg mb-8" },
+                e('h2', { className: "text-xl font-semibold text-red-800 mb-2" }, "⚠️ ¡Seguridad Primero!"),
+                e('ul', { className: "list-disc list-inside space-y-1 text-red-700" }, guide.safetyFirst.map((rule, i) => e('li', { key: i }, rule)))
+            ),
+
+            e('h2', { className: "text-2xl font-bold text-slate-800 mb-4" }, "🚀 Pasos del Proyecto"),
+            e('div', { className: "space-y-6" },
+                guide.steps.map((step, index) => e('div', { key: index, className: "p-4 border rounded-lg bg-slate-50" },
+                    e('h3', { className: "text-lg font-semibold text-blue-700 mb-2" }, `Paso ${index + 1}: ${step.title}`),
+                    e('p', { className: "text-slate-600 mb-3" }, step.description),
+                    e('ul', { className: "list-disc list-inside space-y-1 pl-4 text-sm text-slate-500" }, step.tasks.map((task, i) => e('li', { key: i }, task)))
+                ))
+            ),
+
+            e('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-8 my-8" },
+                 e('div', {}, e('h2', { className: "text-xl font-semibold text-slate-700 border-b-2 border-blue-500 pb-2 mb-3" }, "✅ Criterios de Evaluación"), e('ul', { className: "list-disc list-inside space-y-1 text-slate-600" }, guide.evaluationCriteria.map((crit, i) => e('li', { key: i }, crit)))),
+                 e('div', {}, e('h2', { className: "text-xl font-semibold text-slate-700 border-b-2 border-blue-500 pb-2 mb-3" }, "💡 Próximos Desafíos"), e('ul', { className: "list-disc list-inside space-y-1 text-slate-600" }, guide.nextSteps.map((next, i) => e('li', { key: i }, next))))
+            ),
+             e('div', { className: 'mt-8 flex flex-col sm:flex-row gap-4 no-print' },
+                e('button', {
+                    onClick: () => window.print(),
+                    className: "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors"
+                }, "Imprimir o Guardar como PDF"),
+                e('button', {
+                    onClick: onReset,
+                    className: "w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-md transition-colors"
+                }, "Crear Otra Guía")
+            )
+        )
+    );
+};
+
+
+// --- MAIN APP COMPONENT ---
+
+const App = () => {
+    const [step, setStep] = useState('apiKeySetup');
+    const [apiKey, setApiKey] = useState(null);
+    const [discipline, setDiscipline] = useState(null);
+    const [initialAnswers, setInitialAnswers] = useState(null);
+    const [guide, setGuide] = useState(null);
+    
+    useEffect(() => {
+        const checkApiKey = async () => {
+            const savedKey = localStorage.getItem('geminiApiKey');
+            if (savedKey) {
+                setStep('validating');
+                const isValid = await validateApiKey(savedKey);
+                if (isValid) {
+                    setApiKey(savedKey);
+                    setStep('discipline');
+                } else {
+                    localStorage.removeItem('geminiApiKey');
+                    setStep('apiKeySetup');
+                }
+            }
+        };
+        checkApiKey();
+    }, []);
+
+    const handleApiKeySubmit = (key) => {
+        localStorage.setItem('geminiApiKey', key);
+        setApiKey(key);
+        setStep('discipline');
+    };
+
+    const handleDisciplineSelect = (selectedDiscipline) => {
+        setDiscipline(selectedDiscipline);
+        setStep('form');
+    };
+    
+    const handleFormSubmit = (answers) => {
+        setInitialAnswers(answers);
+        setStep('interactiveBuilder');
+    };
+    
+    const handleFinalize = (finalGuide) => {
+        setGuide(finalGuide);
+        setStep('guide');
+    };
+
+    const handleReset = () => {
+        setGuide(null);
+        setInitialAnswers(null);
+        setDiscipline(null);
+        setStep('discipline');
+    };
+    
+    const LoadingScreen = ({ text }) => e('div', { className: "min-h-screen flex flex-col items-center justify-center bg-slate-100 p-4 text-center" },
+        e(SparklesIcon, { className: 'w-16 h-16 text-blue-600 mx-auto mb-4 animate-pulse' }),
+        e('h1', { className: "text-2xl font-bold text-slate-800" }, text),
+    );
+    
+    switch(step) {
+        case 'apiKeySetup':
+            return e(ApiKeySetup, { onApiKeySubmit: handleApiKeySubmit });
+        case 'validating':
+            return e(LoadingScreen, { text: 'Validando clave de API...' });
+        case 'discipline':
+            return e(DisciplineSelector, { onSelect: handleDisciplineSelect });
+        case 'form':
+            return e(ProjectForm, { questions: questions[discipline], discipline, onSubmit: handleFormSubmit });
+        case 'interactiveBuilder':
+            return e(InteractiveGuideBuilder, { initialAnswers, apiKey, onFinalize: handleFinalize });
+        case 'guide':
+            return e(GuideDisplay, { guide, onReset: handleReset });
+        default:
+            return e(ApiKeySetup, { onApiKeySubmit: handleApiKeySubmit });
+    }
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(e(App));
