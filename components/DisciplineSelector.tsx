@@ -1,3 +1,19 @@
+import React from 'react';
+import { BookOpenIcon } from './icons/BookOpenIcon';
+import { SawIcon } from './icons/SawIcon';
+import { GearsIcon } from './icons/GearsIcon';
+import { DISCIPLINE_DETAILS, Discipline } from '../questions';
+
+interface DisciplineSelectorProps {
+  onSelectDiscipline: (discipline: Discipline) => void;
+}
+
+const ICONS: Record<string, React.FC<any>> = {
+  BookOpenIcon,
+  SawIcon,
+  GearsIcon,
+};
+
 export const DisciplineSelector: React.FC<DisciplineSelectorProps> = ({ onSelectDiscipline }) => {
   return (
     <div className="min-h-screen bg-slate-100/50 flex flex-col items-center justify-center p-4 animate-fade-in">
@@ -27,9 +43,6 @@ export const DisciplineSelector: React.FC<DisciplineSelectorProps> = ({ onSelect
        <footer className="mt-12 text-center text-sm text-slate-500">
             <p>Selecciona una categoría para recibir preguntas guiadas y generar un plan de proyecto completo.</p>
       </footer>
-    </div>
-  );
-};
     </div>
   );
 };

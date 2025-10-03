@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { BotIcon } from './icons/BotIcon';
 import { UserIcon } from './icons/UserIcon';
@@ -164,7 +165,8 @@ const ConsultationChat: React.FC<{
 };
 
 
-const ChatMessage: React.FC<{ message: Message } & Omit<GuideDisplayProps, 'messages' | 'isLoading' | 'loadingMessage'>> = ({ 
+// FIX: Omit 'error' from props, as it's not used in ChatMessage and was causing a type error.
+const ChatMessage: React.FC<{ message: Message } & Omit<GuideDisplayProps, 'messages' | 'isLoading' | 'loadingMessage' | 'error'>> = ({ 
   message, 
   onPrint,
   onToggleAgreement,
