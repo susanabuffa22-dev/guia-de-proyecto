@@ -189,12 +189,13 @@ const getDesignFeedback = async (studentAnswersString, discipline) => {
   } catch (apiError) {
     console.error("Error getting design feedback from Gemini API:", apiError);
     if (apiError.message && apiError.message.startsWith("La IA devolvió una respuesta inesperada")) {
-      throw apiError;
+        throw apiError;
     }
-    if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
-      throw new Error("La clave de API parece ser inválida. Por favor, verifica que sea correcta y que esté habilitada.");
+    let userMessage = `Hubo un error al comunicarse con el servicio de IA. Detalle técnico: ${apiError.message}`;
+    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
+      userMessage = "La clave de API parece ser inválida. Por favor, verifica que sea correcta y que esté habilitada.";
     }
-    throw new Error("Hubo un error al comunicarse con el servicio de IA. Verifica tu conexión y la clave de API, y vuelve a intentarlo.");
+    throw new Error(userMessage);
   }
 };
 const generateProjectImage = async (studentAnswersString, discipline) => {
@@ -230,10 +231,13 @@ const generateProjectImage = async (studentAnswersString, discipline) => {
     }
   } catch (apiError) {
     console.error("Error generating project image:", apiError);
-     if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
-      throw new Error("La clave de API parece ser inválida, por lo que no se pudo generar la imagen.");
+    let userMessage = `Hubo un error al generar la imagen del proyecto. Detalle técnico: ${apiError.message}`;
+    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
+      userMessage = "La clave de API parece ser inválida o no tiene permisos para generar imágenes. Por favor, verifica tu clave en Google AI Studio.";
+    } else if (apiError.message && apiError.message.toLowerCase().includes('safety')) {
+      userMessage = "La solicitud para generar la imagen fue bloqueada por filtros de seguridad. Intenta reformular la idea o el nombre del proyecto.";
     }
-    throw new Error("Hubo un error al generar la imagen del proyecto. Por favor, intenta de nuevo.");
+    throw new Error(userMessage);
   }
 };
 const generateCustomGuide = async (studentAnswersString, conversationHistory, discipline) => {
@@ -278,10 +282,13 @@ Toda la guía DEBE estar en español.
     return response.text;
   } catch (apiError) {
     console.error("Error generating custom guide:", apiError);
-     if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
-      throw new Error("La clave de API parece ser inválida, por lo que no se pudo generar la guía.");
+    let userMessage = `Hubo un error al generar la guía del proyecto. Detalle técnico: ${apiError.message}`;
+    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
+      userMessage = "La clave de API parece ser inválida o no tiene permisos para este modelo. Por favor, verifica tu clave en Google AI Studio.";
+    } else if (apiError.message && apiError.message.toLowerCase().includes('safety')) {
+      userMessage = "La solicitud para generar la guía fue bloqueada por filtros de seguridad. Intenta reformular tus respuestas.";
     }
-    throw new Error("Hubo un error al generar la guía del proyecto. Por favor, intenta de nuevo.");
+    throw new Error(userMessage);
   }
 };
 const getConsultationResponse = async (originalFeedback, userQuestion, discipline) => {
@@ -310,10 +317,11 @@ Sé conciso, claro y útil. Tu respuesta debe abordar directamente la pregunta d
     return response.text;
   } catch (apiError) {
     console.error("Error getting consultation response:", apiError);
-    if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
-        throw new Error("La clave de API parece ser inválida, por lo que no se pudo obtener una respuesta.");
+    let userMessage = `Hubo un error al obtener una respuesta de la IA. Detalle técnico: ${apiError.message}`;
+    if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
+      userMessage = "La clave de API parece ser inválida, por lo que no se pudo obtener una respuesta.";
     }
-    throw new Error("Hubo un error al obtener una respuesta de la IA. Por favor, intenta de nuevo.");
+    throw new Error(userMessage);
   }
 };
 
