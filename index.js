@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -137,7 +138,7 @@ const initializeAi = (apiKey) => {
   }
 };
 const getDesignFeedback = async (studentAnswersString, discipline) => {
-  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
+  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'gemini-2.5-flash';
   const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop. Your task is to review a student's project plan.
 - If the plan is clear, consistent, and feasible, return an empty array.
@@ -175,24 +176,35 @@ const getDesignFeedback = async (studentAnswersString, discipline) => {
     });
     const jsonText = response.text.trim();
     if (!jsonText) {
-        console.warn("Gemini API returned an empty response for feedback.");
-        return [];
+      console.warn("Gemini API returned an empty response for feedback, which is expected for good plans.");
+      return [];
     }
-    const feedback = JSON.parse(jsonText);
-    return feedback;
-  } catch (error) {
-    console.error("Error getting design feedback:", error);
-    throw new Error("Failed to get feedback from the AI. Please try again.");
+    try {
+      const feedback = JSON.parse(jsonText);
+      return feedback;
+    } catch (parseError) {
+      console.error("Failed to parse JSON response from AI:", jsonText);
+      throw new Error(`La IA devolvió una respuesta inesperada. Respuesta recibida: "${jsonText}"`);
+    }
+  } catch (apiError) {
+    console.error("Error getting design feedback from Gemini API:", apiError);
+    if (apiError.message && apiError.message.startsWith("La IA devolvió una respuesta inesperada")) {
+      throw apiError;
+    }
+    if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
+      throw new Error("La clave de API parece ser inválida. Por favor, verifica que sea correcta y que esté habilitada.");
+    }
+    throw new Error("Hubo un error al comunicarse con el servicio de IA. Verifica tu conexión y la clave de API, y vuelve a intentarlo.");
   }
 };
 const generateProjectImage = async (studentAnswersString, discipline) => {
-  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
+  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'imagen-4.0-generate-001';
   const answers = JSON.parse(studentAnswersString);
-  const name = answers.name || `a ${discipline} project`;
-  const idea = answers.idea || 'an innovative device';
-  const style = answers.style || 'a conceptual art style';
-  const materials = answers.materials || 'various materials';
+  const name = answers.name || `un proyecto de ${discipline}`;
+  const idea = answers.idea || 'un dispositivo innovador';
+  const style = answers.style || 'un estilo de arte conceptual';
+  const materials = answers.materials || 'varios materiales';
   const prompt = `
     A professional, high-quality concept art of a student project named "${name}".
     The project is: ${idea}.
@@ -214,15 +226,18 @@ const generateProjectImage = async (studentAnswersString, discipline) => {
       const base64ImageBytes = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The AI did not generate an image.");
+      throw new Error("La IA no generó una imagen.");
     }
-  } catch (error) {
-    console.error("Error generating project image:", error);
-    throw new Error("Failed to generate a project image. Please try again.");
+  } catch (apiError) {
+    console.error("Error generating project image:", apiError);
+     if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
+      throw new Error("La clave de API parece ser inválida, por lo que no se pudo generar la imagen.");
+    }
+    throw new Error("Hubo un error al generar la imagen del proyecto. Por favor, intenta de nuevo.");
   }
 };
 const generateCustomGuide = async (studentAnswersString, conversationHistory, discipline) => {
-  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
+  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'gemini-2.5-flash';
   const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
 Your task is to generate a comprehensive, step-by-step project guide for a student.
@@ -261,13 +276,16 @@ Use this information to create a personalized, encouraging, and clear guide.
       },
     });
     return response.text;
-  } catch (error) {
-    console.error("Error generating custom guide:", error);
-    throw new Error("Failed to generate the project guide. Please try again.");
+  } catch (apiError) {
+    console.error("Error generating custom guide:", apiError);
+     if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
+      throw new Error("La clave de API parece ser inválida, por lo que no se pudo generar la guía.");
+    }
+    throw new Error("Hubo un error al generar la guía del proyecto. Por favor, intenta de nuevo.");
   }
 };
 const getConsultationResponse = async (originalFeedback, userQuestion, discipline) => {
-  if (!ai) throw new Error("AI service not initialized. Call initializeAi first.");
+  if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'gemini-2.5-flash';
   const systemInstruction = `You are an expert AI mentor for a ${discipline} workshop.
 Your task is to answer a student's follow-up question about a specific piece of feedback you provided.
@@ -290,9 +308,12 @@ Be concise, clear, and helpful. Your answer should directly address the student'
       },
     });
     return response.text;
-  } catch (error) {
-    console.error("Error getting consultation response:", error);
-    throw new Error("Failed to get an answer from the AI. Please try again.");
+  } catch (apiError) {
+    console.error("Error getting consultation response:", apiError);
+    if (apiError.message && (apiError.message.includes('API key not valid') || apiError.message.includes('403') || apiError.message.includes('permission denied'))) {
+        throw new Error("La clave de API parece ser inválida, por lo que no se pudo obtener una respuesta.");
+    }
+    throw new Error("Hubo un error al obtener una respuesta de la IA. Por favor, intenta de nuevo.");
   }
 };
 
