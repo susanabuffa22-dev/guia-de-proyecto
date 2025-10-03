@@ -226,21 +226,24 @@ const getDesignFeedback = async (studentAnswersString, discipline) => {
 };
 const generateProjectImage = async (studentAnswersString, discipline) => {
   if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
-  // Usa el modelo y la API correctos para la generación de imágenes.
+  
   const model = 'imagen-4.0-generate-001';
   const answers = JSON.parse(studentAnswersString);
-  const name = answers.name || `un proyecto de ${discipline}`;
+  
   const idea = answers.idea || 'un dispositivo innovador';
   const style = answers.style || 'un estilo de arte conceptual';
   const materials = answers.materials || 'varios materiales';
+  
   const prompt = `
-    Un boceto de diseño de producto, limpio, profesional y de alta calidad sobre un fondo blanco.
-    El proyecto estudiantil se llama "${name}".
-    Concepto: ${idea}.
-    Estética: "${style}".
+    Genera un diagrama de ensamblaje técnico en vista explosionada, como el de un manual de instalación o un plano de despiece.
+    El estilo debe ser un render 3D limpio, detallado y minimalista sobre un fondo completamente blanco.
+    Muestra todos los componentes principales por separado pero alineados, con líneas de puntos o guías tenues que indiquen cómo se conectan y ensamblan.
+    Concepto del proyecto: ${idea}.
+    Estilo visual y estético: "${style}".
     Materiales principales: ${materials}.
-    La imagen debe resaltar las características clave del proyecto con un tono vibrante, optimista e inspirador.
+    IMPORTANTE: La imagen debe ser puramente visual. No incluyas NINGÚN tipo de texto, letras, números, etiquetas, logos o dimensiones.
   `;
+
   try {
     const response = await ai.models.generateImages({
       model,
