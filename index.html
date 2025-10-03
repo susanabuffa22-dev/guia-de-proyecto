@@ -36,7 +36,7 @@
 </head>
   <body class="bg-slate-50 text-slate-800">
     <div id="root"></div>
-    <!-- Cambiamos el tipo de script para que Babel lo procese -->
-    <script type="text/babel" data-type="module" src="/index.tsx"></script>
+    <!-- Cambiamos el tipo de script y añadimos los presets para que Babel procese TypeScript y React -->
+    <script type="text/babel" data-type="module" data-presets="typescript,react" src="/index.tsx"></script>
   </body>
 </html>
