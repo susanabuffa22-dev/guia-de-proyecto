@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
       body {
         font-family: 'Inter', sans-serif;
@@ -32,9 +31,12 @@
   }
 }
 </script>
+<!-- Añadimos Babel para "traducir" el código TSX en el navegador -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
   <body class="bg-slate-50 text-slate-800">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <!-- Cambiamos el tipo de script para que Babel lo procese -->
+    <script type="text/babel" data-type="module" src="/index.tsx"></script>
   </body>
 </html>
