@@ -136,6 +136,33 @@ const initializeAi = (apiKey) => {
     return `Error al inicializar la IA. Asegúrate de que tu API Key sea correcta. Detalle: ${e.message}`;
   }
 };
+
+const verifyApiKey = async (apiKey) => {
+  if (!apiKey) {
+    return "La clave de API no puede estar vacía.";
+  }
+  try {
+    // Creamos un cliente temporal solo para verificación.
+    const tempAi = new GoogleGenAI({ apiKey });
+    // Una llamada ligera a un modelo rápido para verificar la autenticación.
+    await tempAi.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'hola', // Un prompt simple y no vacío.
+    });
+    return null; // Devolver null significa éxito (sin mensaje de error).
+  } catch (apiError) {
+    console.error("La validación de la clave de API falló:", apiError);
+    const msg = apiError.message || '';
+    if (msg.toLowerCase().includes('api key not valid') || msg.toLowerCase().includes('permission denied') || msg.includes('403')) {
+      return "La clave de API parece ser inválida. Por favor, verifica que sea correcta y que esté habilitada en Google AI Studio.";
+    }
+    if (msg.toLowerCase().includes('quota exceeded') || msg.includes('429')) {
+      return "Has excedido tu cuota de uso gratuito. La clave parece correcta, pero no se puede usar en este momento. Revisa tu plan en Google AI Studio.";
+    }
+    return `Ocurrió un error inesperado al verificar la clave: ${msg}`;
+  }
+};
+
 const getDesignFeedback = async (studentAnswersString, discipline) => {
   if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
   const model = 'gemini-2.5-flash';
@@ -340,64 +367,111 @@ const UserIcon = (props) => React.createElement("svg", { ...props, xmlns: "http:
 const SawIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "m22 8-2.296 2.296-1.091-1.091-2.015 2.015-1.091-1.091-2.015 2.015-1.091-1.091-2.015 2.015-1.091-1.091-2.015 2.015-1.121-1.121L2 16" }), React.createElement("path", { d: "M9 12a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z" }), React.createElement("path", { d: "M11 11 3 21" }), React.createElement("path", { d: "m15.5 6.5 5.5-5.5" }), React.createElement("path", { d: "M22 13a8.84 8.84 0 0 0-3-5.18" }));
 const GearsIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("circle", { cx: "12", cy: "12", r: "3" }), React.createElement("path", { d: "M12 3v3m0 12v3m9-9h-3M6 12H3m7.05-7.05-2.12 2.12M19.07 19.07l-2.12-2.12M7.05 16.95l2.12-2.12M16.95 7.05l-2.12 2.12" }), React.createElement("circle", { cx: "6", cy: "6", r: "3" }), React.createElement("path", { d: "M6 3v3m0 6V9m4.95-4.95-2.12 2.12M11.07 11.07l-2.12-2.12" }), React.createElement("circle", { cx: "18", cy: "18", r: "3" }), React.createElement("path", { d: "M18 15v3m0 6v-3m4.95-4.95-2.12 2.12M23.07 23.07l-2.12-2.12" }));
 const KeyIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4" }));
+const XIcon = (props) => React.createElement("svg", { ...props, xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M18 6 6 18" }), React.createElement("path", { d: "m6 6 12 12" }));
+
+
+//======= components/HelpModal.tsx =======//
+const HelpModal = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+    return React.createElement("div", {
+      className: "fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in",
+      onClick: onClose
+    },
+      React.createElement("div", {
+        className: "bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative p-8 m-4",
+        onClick: e => e.stopPropagation()
+      },
+        React.createElement("button", {
+          onClick: onClose,
+          className: "absolute top-4 right-4 text-slate-400 hover:text-slate-800 transition-colors"
+        },
+          React.createElement(XIcon, { className: "h-6 w-6" })
+        ),
+        React.createElement("h2", { className: "text-2xl font-bold text-slate-900 mb-4" }, "Guía Rápida para Obtener tu Clave de API"),
+        React.createElement("p", { className: "text-slate-600 mb-6" }, "¡Es gratis y solo toma un minuto! Sigue estos pasos para comenzar a usar el Mentor de Proyectos IA:"),
+        React.createElement("ol", { className: "list-decimal list-inside space-y-4 text-slate-700" },
+          React.createElement("li", null, React.createElement("strong", null, "Visita Google AI Studio:"), " Haz clic en el enlace que encontrarás al final de esta guía para ir directamente a la página correcta."),
+          React.createElement("li", null, React.createElement("strong", null, "Inicia Sesión:"), " Usa tu cuenta de Google para acceder. Si no tienes una, puedes crearla gratuitamente."),
+          React.createElement("li", null, React.createElement("strong", null, "Obtén la Clave:"), " Busca y haz clic en el botón ", React.createElement("span", { className: "font-mono bg-slate-100 p-1 rounded" }, "Get API key"), " (Obtener clave de API), usualmente ubicado en el menú de la izquierda."),
+          React.createElement("li", null, React.createElement("strong", null, "Crea un Nuevo Proyecto:"), " En la ventana que aparece, haz clic en ", React.createElement("span", { className: "font-mono bg-slate-100 p-1 rounded" }, "Create API key in new project"), " (Crear clave de API en un nuevo proyecto)."),
+          React.createElement("li", null, React.createElement("strong", null, "Copia tu Clave:"), " ¡Listo! Aparecerá una clave larga. Haz clic en el ícono de copiar para guardarla en tu portapapeles."),
+          React.createElement("li", null, React.createElement("strong", null, "Pégala en la App:"), " Vuelve a esta página, cierra esta ventana y pega la clave en el campo correspondiente.")
+        ),
+        React.createElement("div", { className: "mt-8" },
+          React.createElement("a", {
+            href: "https://aistudio.google.com/app/apikey",
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className: "w-full text-center block px-4 py-3 bg-sky-600 text-white font-semibold rounded-md shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors"
+          }, "Ir a Google AI Studio \u2192")
+        )
+      )
+    );
+};
+
 
 //======= components/ApiKeySetup.tsx =======//
 const ApiKeySetup = ({ onSave, error, isLoading }) => {
   const [apiKey, setApiKey] = useState('');
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isLoading || !apiKey.trim()) return;
     onSave(apiKey);
   };
-  return React.createElement("div", { className: "min-h-screen bg-slate-100/50 flex flex-col items-center justify-center p-4 animate-fade-in" },
-    React.createElement("div", { className: "w-full max-w-lg" },
-      React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-lg border border-slate-200" },
-        React.createElement("div", { className: "text-center mb-6" },
-          React.createElement("div", { className: "inline-block p-4 bg-sky-100 rounded-full mb-4" },
-            React.createElement(KeyIcon, { className: "h-10 w-10 text-sky-600" })
+  return React.createElement(React.Fragment, null,
+    React.createElement(HelpModal, { isOpen: isHelpModalOpen, onClose: () => setIsHelpModalOpen(false) }),
+    React.createElement("div", { className: "min-h-screen bg-slate-100/50 flex flex-col items-center justify-center p-4 animate-fade-in" },
+      React.createElement("div", { className: "w-full max-w-lg" },
+        React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-lg border border-slate-200" },
+          React.createElement("div", { className: "text-center mb-6" },
+            React.createElement("div", { className: "inline-block p-4 bg-sky-100 rounded-full mb-4" },
+              React.createElement(KeyIcon, { className: "h-10 w-10 text-sky-600" })
+            ),
+            React.createElement("h1", { className: "text-3xl font-bold text-slate-900" }, "Configuración Requerida"),
+            React.createElement("p", { className: "text-slate-600 mt-2" }, "Para comenzar, por favor introduce tu clave de API de Gemini.")
           ),
-          React.createElement("h1", { className: "text-3xl font-bold text-slate-900" }, "Configuración Requerida"),
-          React.createElement("p", { className: "text-slate-600 mt-2" }, "Para comenzar, por favor introduce tu clave de API de Gemini.")
-        ),
-        React.createElement("form", { onSubmit: handleSubmit, className: "space-y-4" },
-          React.createElement("div", null,
-            React.createElement("label", { htmlFor: "apiKey", className: "block text-sm font-medium text-slate-700 mb-1" }, "Tu API Key"),
-            React.createElement("input", {
-              id: "apiKey",
-              type: "password",
-              value: apiKey,
-              onChange: (e) => setApiKey(e.target.value),
-              className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 transition",
-              placeholder: "Pega tu clave aquí...",
-              required: true,
-              disabled: isLoading
-            })
+          React.createElement("form", { onSubmit: handleSubmit, className: "space-y-4" },
+            React.createElement("div", null,
+              React.createElement("label", { htmlFor: "apiKey", className: "block text-sm font-medium text-slate-700 mb-1" }, "Tu API Key"),
+              React.createElement("input", {
+                id: "apiKey",
+                type: "password",
+                value: apiKey,
+                onChange: (e) => setApiKey(e.target.value),
+                className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 transition",
+                placeholder: "Pega tu clave aquí...",
+                required: true,
+                disabled: isLoading
+              })
+            ),
+            error && React.createElement("div", { className: "bg-red-100 border border-red-300 text-red-800 text-sm p-3 rounded-md" }, error),
+            React.createElement("div", { className: "pt-2" },
+              React.createElement("button", {
+                type: "submit",
+                disabled: isLoading || !apiKey.trim(),
+                className: "w-full flex justify-center items-center gap-2 px-4 py-3 bg-sky-600 text-white font-semibold rounded-md shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
+              },
+              isLoading ?
+                React.createElement(React.Fragment, null,
+                  React.createElement("svg", { className: "animate-spin -ml-1 mr-3 h-5 w-5 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
+                    React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
+                    React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
+                  ), "Verificando..."
+                ) : 'Guardar y Continuar'
+              )
+            )
           ),
-          error && React.createElement("div", { className: "bg-red-100 border border-red-300 text-red-800 text-sm p-3 rounded-md" }, error),
-          React.createElement("div", { className: "pt-2" },
-            React.createElement("button", {
-              type: "submit",
-              disabled: isLoading || !apiKey.trim(),
-              className: "w-full flex justify-center items-center gap-2 px-4 py-3 bg-sky-600 text-white font-semibold rounded-md shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
-            },
-            isLoading ?
-              React.createElement(React.Fragment, null,
-                React.createElement("svg", { className: "animate-spin -ml-1 mr-3 h-5 w-5 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
-                  React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
-                  React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
-                ), "Verificando..."
-              ) : 'Guardar y Continuar'
+          React.createElement("div", { className: "mt-6 text-center text-xs text-slate-500" },
+            React.createElement("p", null, "Tu clave se guardará en el almacenamiento de tu navegador."),
+             React.createElement("p", { className: "text-sm mt-2" }, "¿Necesitas ayuda para obtener una clave? ",
+              React.createElement("button", {
+                type: "button",
+                onClick: () => setIsHelpModalOpen(true),
+                className: "font-semibold text-sky-600 hover:underline focus:outline-none"
+              }, "Haz clic aquí.")
             )
           )
-        ),
-        React.createElement("div", { className: "mt-6 text-center text-xs text-slate-500" },
-          React.createElement("p", null, "Tu clave se guardará en el almacenamiento de tu navegador."),
-          React.createElement("a", {
-            href: "https://aistudio.google.com/app/apikey",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "text-sky-600 hover:underline mt-1 inline-block"
-          }, "¿No tienes una clave? Consíguela en Google AI Studio \u2192")
         )
       )
     )
@@ -732,32 +806,38 @@ const App = () => {
   const [imageGenerationWarning, setImageGenerationWarning] = useState(null);
   const messagesEndRef = useRef(null);
   useEffect(() => {
-    const storedKey = localStorage.getItem('GEMINI_API_KEY');
-    if (storedKey) {
-      const initError = initializeAi(storedKey);
-      if (initError) {
-        setError(initError + " Por favor, introduce una clave válida.");
-        localStorage.removeItem('GEMINI_API_KEY');
-        setIsApiKeyNeeded(true);
-      } else {
-        setIsApiKeyNeeded(false);
-      }
-    } else {
-      setIsApiKeyNeeded(true);
-    }
-    setIsLoading(false);
+    const validateStoredKey = async () => {
+        setIsLoading(true);
+        const storedKey = localStorage.getItem('GEMINI_API_KEY');
+        if (storedKey) {
+            const verificationError = await verifyApiKey(storedKey);
+            if (verificationError) {
+                setError("Tu clave de API guardada no es válida o ha excedido la cuota. Por favor, introduce una nueva.");
+                localStorage.removeItem('GEMINI_API_KEY');
+                setIsApiKeyNeeded(true);
+            } else {
+                initializeAi(storedKey);
+                setIsApiKeyNeeded(false);
+            }
+        } else {
+            setIsApiKeyNeeded(true);
+        }
+        setIsLoading(false);
+    };
+    validateStoredKey();
   }, []);
-  const handleSaveApiKey = (key) => {
+  const handleSaveApiKey = async (key) => {
     setIsLoading(true);
     setError(null);
-    const initError = initializeAi(key);
-    if (initError) {
-      setError(initError);
-      setIsLoading(false);
+    const verificationError = await verifyApiKey(key);
+    if (verificationError) {
+        setError(verificationError);
+        setIsLoading(false);
     } else {
-      localStorage.setItem('GEMINI_API_KEY', key);
-      setIsApiKeyNeeded(false);
-      setIsLoading(false);
+        initializeAi(key);
+        localStorage.setItem('GEMINI_API_KEY', key);
+        setIsApiKeyNeeded(false);
+        setIsLoading(false);
     }
   };
   const scrollToBottom = () => {
@@ -914,7 +994,7 @@ const App = () => {
     }
   };
   const renderContent = () => {
-    if (isLoading && !loadingMessage) {
+    if (isLoading && !discipline) { // Show loader only on initial load
       return React.createElement("div", { className: "flex justify-center items-center h-screen" },
         React.createElement("svg", { className: "animate-spin h-8 w-8 text-sky-600", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
           React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
