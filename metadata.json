@@ -1,0 +1,5 @@
+{
+  "name": "Generador de Guías de Proyectos Educativos",
+  "description": "Una aplicación para generar guías de proyectos de tecnología detalladas y paso a paso para estudiantes, utilizando la API de Gemini.",
+  "requestFramePermissions": []
+}
