@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -200,37 +199,54 @@ const getDesignFeedback = async (studentAnswersString, discipline) => {
 };
 const generateProjectImage = async (studentAnswersString, discipline) => {
   if (!ai) throw new Error("Servicio de IA no inicializado. Llama a initializeAi primero.");
-  const model = 'imagen-4.0-generate-001';
+
+  const model = 'gemini-2.5-flash-image';
+  
   const answers = JSON.parse(studentAnswersString);
   const name = answers.name || `un proyecto de ${discipline}`;
   const idea = answers.idea || 'un dispositivo innovador';
   const style = answers.style || 'un estilo de arte conceptual';
   const materials = answers.materials || 'varios materiales';
+
   const prompt = `
-    Un arte conceptual profesional y de alta calidad de un proyecto estudiantil llamado "${name}".
+    Genera un arte conceptual profesional y de alta calidad de un proyecto estudiantil llamado "${name}".
     El proyecto es: ${idea}.
     Tiene una estética de "${style}" y está hecho principalmente de ${materials}.
     La imagen debe ser un boceto de diseño de producto limpio sobre un fondo blanco, destacando sus características clave.
     Tono vibrante, optimista e inspirador.
   `;
+
   try {
-    const response = await ai.models.generateImages({
+    const response = await ai.models.generateContent({
       model,
-      prompt,
+      contents: {
+        parts: [{ text: prompt }],
+      },
       config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/png',
-        aspectRatio: '16:9',
+        responseModalities: ["IMAGE", "TEXT"],
       },
     });
-    if (response.generatedImages && response.generatedImages.length > 0) {
-      const base64ImageBytes = response.generatedImages[0].image.imageBytes;
-      return `data:image/png;base64,${base64ImageBytes}`;
-    } else {
-      throw new Error("La IA no generó una imagen.");
+
+    if (response.candidates && response.candidates.length > 0 && response.candidates[0].content && response.candidates[0].content.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          const base64ImageBytes = part.inlineData.data;
+          const mimeType = part.inlineData.mimeType || 'image/png';
+          return `data:${mimeType};base64,${base64ImageBytes}`;
+        }
+      }
     }
+    
+    throw new Error("La IA no generó una imagen. La respuesta no contenía datos de imagen.");
+
   } catch (apiError) {
-    console.error("Error generating project image:", apiError);
+    console.error("Error generating project image with gemini-2.5-flash-image:", apiError);
+    
+    if (apiError.message && apiError.message.toLowerCase().includes('billed users')) {
+        console.warn('Image generation skipped: API key is not for a billed account.');
+        return null;
+    }
+
     let userMessage = `Hubo un error al generar la imagen del proyecto. Detalle técnico: ${apiError.message}`;
     if (apiError.message && (apiError.message.toLowerCase().includes('api key not valid') || apiError.message.includes('403') || apiError.message.toLowerCase().includes('permission denied'))) {
       userMessage = "La clave de API parece ser inválida o no tiene permisos para generar imágenes. Por favor, verifica tu clave en Google AI Studio.";
@@ -609,8 +625,12 @@ const ChatMessage = ({ message, onPrint, onToggleAgreement, onSendConsultation, 
     )
   );
 };
-const GuideDisplay = ({ messages, isLoading, loadingMessage, error, ...props }) => {
+const GuideDisplay = ({ messages, isLoading, loadingMessage, error, imageGenerationWarning, ...props }) => {
   return React.createElement("div", { className: "space-y-6" },
+    imageGenerationWarning && React.createElement("div", { className: "bg-amber-100 border-l-4 border-amber-500 text-amber-800 p-4 rounded-md shadow-sm animate-fade-in", role: "alert" },
+        React.createElement("p", { className: "font-bold" }, "Nota sobre la imagen"),
+        React.createElement("p", null, imageGenerationWarning)
+    ),
     messages.map((msg) => React.createElement(ChatMessage, { key: msg.id, message: msg, ...props })),
     isLoading && React.createElement("div", { className: "flex items-start gap-4 animate-fade-in" },
       React.createElement(BotIcon, { className: "h-8 w-8 text-slate-400 shrink-0" }),
@@ -717,6 +737,7 @@ const App = () => {
   const [error, setError] = useState(null);
   const [consultationInputs, setConsultationInputs] = useState({});
   const [isConsulting, setIsConsulting] = useState(null);
+  const [imageGenerationWarning, setImageGenerationWarning] = useState(null);
   const messagesEndRef = useRef(null);
   useEffect(() => {
     const storedKey = localStorage.getItem('GEMINI_API_KEY');
@@ -764,6 +785,7 @@ const App = () => {
   const handleSubmitAnswers = useCallback(async (submittedAnswers) => {
     setIsLoading(true);
     setError(null);
+    setImageGenerationWarning(null);
     setAnswers(submittedAnswers);
     const userMessage = {
       id: `user-${Date.now()}`,
@@ -799,9 +821,14 @@ const App = () => {
   const generateGuide = async (studentAnswersString) => {
       setIsLoading(true);
       setError(null);
+      setImageGenerationWarning(null);
       setLoadingMessage('Generando una imagen conceptual del proyecto...');
       try {
         const imageUrl = await generateProjectImage(studentAnswersString, discipline);
+        if (imageUrl === null) {
+            setImageGenerationWarning("No se pudo generar la imagen porque la API de Imagen requiere una cuenta con facturación habilitada. ¡Pero no te preocupes, aquí está tu guía de texto!");
+        }
+        
         setLoadingMessage('Creando la guía paso a paso...');
         const conversationHistory = messages
           .filter(m => m.type === 'feedback' || m.type === 'answer' || m.consultations)
@@ -819,7 +846,7 @@ const App = () => {
           sender: 'ai',
           text: guideText,
           type: 'guide',
-          imageUrl: imageUrl,
+          imageUrl: imageUrl, // Will be null if generation was skipped
           title: answers?.name || "Guía de Proyecto Personalizada",
         };
         setMessages(prev => [...prev, guideMessage]);
@@ -922,6 +949,7 @@ const App = () => {
         isLoading: isLoading,
         loadingMessage: loadingMessage,
         error: error,
+        imageGenerationWarning: imageGenerationWarning,
         onPrint: handlePrintGuide,
         onToggleAgreement: handleToggleAgreement,
         onSendConsultation: handleSendConsultation,
